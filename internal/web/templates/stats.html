@@ -1,0 +1,1859 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>analys</title>
+<style>
+{{ template "basecss" }}
+
+/* Toolbar */
+.toolbar {
+  display: flex; align-items: center; gap: 4px; flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.tb-sep { color: var(--rule); font-size: 11px; margin: 0 2px; user-select: none }
+input[type="date"] {
+  font-family: inherit; font-size: 12px; font-weight: 400;
+  padding: 3px 8px;
+  color: var(--fg2); background: transparent;
+  border: 1px solid var(--rule); cursor: pointer;
+  transition: border-color .15s;
+}
+input[type="date"]:focus { border-color: var(--accent); outline: none }
+input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(.5); cursor: pointer }
+
+/* Filters */
+.filter-groups { margin-bottom: 10px }
+.filter-group {
+  display: flex; align-items: baseline; gap: 5px;
+  margin-bottom: 5px; flex-wrap: wrap;
+}
+.filter-label {
+  font-size: 11px; font-weight: 600; color: var(--fg3);
+  min-width: 70px; flex-shrink: 0;
+}
+.more-btn { color: var(--fg3); font-style: italic; font-size: 11px; background: none; border: none; cursor: pointer }
+.more-btn:hover { color: var(--fg2) }
+
+/* Heroes — uses shared .stat-grid/.stat-card from basecss */
+.hero-detail { font-size: 11px; font-weight: 400; color: var(--fg3); margin-top: 2px; line-height: 1.3 }
+
+/* Section label */
+.sec-t {
+  font-size: 12px; font-weight: 600; color: var(--fg3); margin-bottom: 8px;
+}
+
+/* Actor cards */
+.actor-list { display: flex; flex-direction: column; margin-bottom: 18px }
+.actor-card {
+  padding: 12px 0;
+  display: grid; grid-template-columns: 1fr auto; gap: 4px 12px;
+  cursor: pointer; border-bottom: 1px solid var(--rule);
+  transition: border-color .15s;
+}
+.actor-card:first-child { border-top: 1px solid var(--rule) }
+.ac-top { display: flex; align-items: baseline; gap: 8px }
+.ac-name { font-size: 14px; font-weight: 600; color: var(--fg); letter-spacing: -.01em }
+.ac-aliases { font-size: 11px; font-weight: 400; color: var(--fg3); font-style: italic }
+.ac-expand { font-size: 10px; color: var(--fg3); transition: transform .2s; margin-left: auto }
+.actor-card.expanded .ac-expand { transform: rotate(90deg) }
+.ac-badge {
+  font-size: 10px; font-weight: 500; color: var(--fg3);
+  align-self: start; margin-top: 1px; white-space: nowrap;
+}
+.ac-meta {
+  display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+  grid-column: 1 / -1;
+}
+.ac-stat { display: flex; flex-direction: column; align-items: center; min-width: 44px }
+.ac-stat-n { font-size: 16px; font-weight: 700; color: var(--fg2); font-variant-numeric: tabular-nums }
+.ac-stat-l { font-size: 9px; font-weight: 600; color: var(--fg3) }
+.ac-tl-wrap { flex: 1; min-width: 140px }
+.ac-tl-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 2px }
+.ac-tl-label { font-size: 9px; color: var(--fg3); font-weight: 600 }
+.ac-tl-range { font-size: 9px; color: var(--fg3) }
+.ac-tl-track { position: relative; height: 14px; background: var(--bg3); overflow: hidden }
+.ac-tl-tick { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--rule); opacity: .4 }
+.ac-tl-dot {
+  position: absolute; top: 50%; width: 7px; height: 7px; border-radius: 50%;
+  transform: translate(-50%, -50%); opacity: .85;
+}
+.ac-tl-dot:hover { opacity: 1; transform: translate(-50%, -50%) scale(1.5); z-index: 2 }
+.ac-tags { display: flex; gap: 4px; flex-wrap: wrap }
+.ac-tag { font-size: 10px; font-weight: 500; color: var(--fg2) }
+.ac-tag::before { content: " · " }
+.ac-tag:first-child::before { content: none }
+.ac-origin { font-size: 10px; font-weight: 600; color: var(--fg2) }
+.ac-region { font-size: 10px; font-weight: 500; color: var(--fg3) }
+.ac-region::before { content: " · " }
+/* Expanded articles */
+.ac-articles {
+  grid-column: 1 / -1; display: none;
+  border-top: 1px solid var(--rule); margin-top: 4px; padding-top: 6px;
+}
+.actor-card.expanded .ac-articles { display: block }
+.ac-article {
+  display: grid; grid-template-columns: 36px 1fr; gap: 2px 10px;
+  padding: 6px 0; border-bottom: 1px solid var(--rule);
+}
+.ac-article:last-child { border-bottom: none }
+.ac-art-score { font-size: 13px; font-weight: 700; color: var(--fg2); text-align: center; font-variant-numeric: tabular-nums; cursor: help }
+.ac-art-title { font-size: 12px; font-weight: 500; color: var(--fg2) }
+.ac-art-title a { color: inherit; text-decoration: none }
+.ac-art-title a:hover { color: var(--accent) }
+.ac-art-summary { font-size: 11px; font-weight: 400; color: var(--fg3); line-height: 1.4; grid-column: 2 }
+.ac-art-meta { font-size: 10px; color: var(--fg3); grid-column: 2 }
+.none { text-align: center; color: var(--fg3); font-weight: 400; font-size: 14px; padding: 48px 0 }
+.data-note {
+  font-size: 11px; font-weight: 400; color: var(--fg3); text-align: center;
+  padding: 14px 0; border-top: 1px solid var(--rule); margin-top: 48px;
+}
+
+/* Scatter */
+.scatter { position: relative; width: 100%; height: min(65vh,480px); margin-bottom: 24px; margin-top: 8px; overflow: visible }
+.scatter-ax { position: absolute; background: var(--rule) }
+.scatter-ax-x { left: 0; right: 0; bottom: 0; height: 1px }
+.scatter-ax-y { left: 0; top: 0; bottom: 0; width: 1px }
+.scatter-grid { position: absolute; left: 0; right: 0; height: 1px; background: var(--bg3) }
+.scatter-dot { position: absolute; width: 7px; height: 7px; border-radius: 50%; cursor: pointer; transition: transform .12s, opacity .12s }
+.scatter-dot:hover { transform: scale(2.2); opacity: 1 !important; z-index: 10 }
+.scatter-tip {
+  position: fixed; padding: 8px 12px; font-size: 12px;
+  pointer-events: none; z-index: 100; max-width: 280px; color: var(--fg2); line-height: 1.4;
+  background: var(--bg2); border: 1px solid var(--rule);
+}
+.scatter-lbl { position: absolute; font-size: 10px; color: var(--fg3); pointer-events: none }
+.scatter-lbl-axis { font-size: 11px; color: var(--fg2); font-weight: 600; letter-spacing: .03em }
+.scatter-name { position: absolute; font-size: 9px; color: var(--fg2); pointer-events: none; white-space: nowrap; opacity: .8; text-shadow: 0 0 4px var(--bg), 0 0 8px var(--bg), 0 0 2px var(--bg) }
+
+/* World map */
+#map-wrap { position: relative; margin-bottom: 24px }
+/* Focus mode — map takes over the page without browser fullscreen */
+body.map-focus .nav,
+body.map-focus h1,
+body.map-focus .sub,
+body.map-focus .toolbar,
+body.map-focus .filter-group,
+body.map-focus .filter-groups,
+body.map-focus .stat-grid,
+body.map-focus #actors-wrap,
+body.map-focus #tag-bar,
+body.map-focus #scatter,
+body.map-focus .data-note { display: none !important }
+body.map-focus #map-wrap {
+  display: flex !important; align-items: center; justify-content: center;
+  position: fixed; inset: 0; z-index: 1000; background: var(--bg);
+}
+body.map-focus #map-viewport {
+  width: 80vw; max-width: 1200px;
+}
+body.map-focus #map-wrap .map-legend {
+  position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%);
+  background: var(--bg2); border: 1px solid var(--rule);
+  padding: 6px 16px; z-index: 5;
+}
+body.map-focus #map-wrap .map-zoom-ctrl {
+  top: 16px; right: 16px;
+}
+.map-updated {
+  text-align: center; font-size: 9px; color: var(--fg3); opacity: .5;
+  padding: 4px 0 0; letter-spacing: .03em;
+}
+body.map-focus .map-updated {
+  position: absolute; bottom: 4px; left: 50%; transform: translateX(-50%);
+  padding: 0;
+}
+#map-viewport { position: relative; overflow: hidden; cursor: grab }
+#map-viewport:active { cursor: grabbing }
+#map-viewport .worldmap { transform-origin: 0 0 }
+.map-zoom-ctrl {
+  position: absolute; top: 8px; right: 8px; display: flex; flex-direction: column; gap: 2px; z-index: 5;
+}
+.map-zoom-btn {
+  width: 28px; height: 28px; border: 1px solid var(--rule);
+  background: var(--bg2); color: var(--fg2); font-size: 16px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; font-family: inherit;
+  transition: background .1s;
+}
+.map-zoom-btn:hover { background: var(--bg3) }
+.worldmap {
+  width: 100%; height: auto;
+}
+.worldmap path, .worldmap g > path {
+  fill: var(--bg3); stroke: var(--map-border); stroke-width: 0.4;
+  transition: fill .2s, filter .2s;
+  cursor: pointer;
+}
+:root, [data-theme="dark"] { --map-border: rgba(255,255,255,.08); --map-dim-border: rgba(255,255,255,.06) }
+[data-theme="light"] { --map-border: rgba(0,0,0,.12); --map-dim-border: rgba(0,0,0,.08) }
+@media (prefers-color-scheme: light) { :root:not([data-theme]) { --map-border: rgba(0,0,0,.12); --map-dim-border: rgba(0,0,0,.08) } }
+.worldmap path:hover, .worldmap g > path:hover { filter: brightness(1.2) }
+/* Target/victim countries: blue scale */
+.worldmap .heat-1 path, .worldmap path.heat-1, .worldmap .heat-1 > path { fill: #1e3a5f }
+.worldmap .heat-2 path, .worldmap path.heat-2, .worldmap .heat-2 > path { fill: #1d4ed8 }
+.worldmap .heat-3 path, .worldmap path.heat-3, .worldmap .heat-3 > path { fill: #2563eb }
+.worldmap .heat-4 path, .worldmap path.heat-4, .worldmap .heat-4 > path { fill: #3b82f6; filter: drop-shadow(0 0 3px rgba(59,130,246,.4)) }
+.worldmap .heat-5 path, .worldmap path.heat-5, .worldmap .heat-5 > path { fill: #60a5fa; filter: drop-shadow(0 0 4px rgba(96,165,250,.5)) }
+.worldmap .heat-6 path, .worldmap path.heat-6, .worldmap .heat-6 > path { fill: #93c5fd; filter: drop-shadow(0 0 6px rgba(147,197,253,.6)) }
+/* Attacker origin countries: red scale */
+.worldmap .origin-1 path, .worldmap path.origin-1, .worldmap .origin-1 > path { fill: #7f1d1d }
+.worldmap .origin-2 path, .worldmap path.origin-2, .worldmap .origin-2 > path { fill: #dc2626 }
+.worldmap .origin-3 path, .worldmap path.origin-3, .worldmap .origin-3 > path { fill: #f87171; filter: drop-shadow(0 0 4px rgba(248,113,113,.5)) }
+/* Both attacker and target */
+.worldmap .origin-target path, .worldmap path.origin-target, .worldmap .origin-target > path {
+  fill: #9333ea; stroke: #3b82f6; stroke-width: 1.2; filter: drop-shadow(0 0 4px rgba(147,51,234,.5));
+}
+/* Country focus mode: dim everything, highlight target + origins */
+.worldmap.country-focus path, .worldmap.country-focus g > path {
+  fill: var(--bg3); opacity: .3; filter: none;
+  stroke: var(--map-dim-border); stroke-width: 0.4;
+  transition: fill .3s, opacity .3s;
+}
+.worldmap.country-focus .focus-target path, .worldmap.country-focus path.focus-target, .worldmap.country-focus .focus-target > path,
+.worldmap.country-focus g.focus-target > path {
+  fill: #3b82f6 !important; opacity: 1 !important; stroke: #93c5fd; stroke-width: 1.2;
+  filter: drop-shadow(0 0 8px rgba(59,130,246,.6)) !important;
+}
+.worldmap.country-focus .focus-origin path, .worldmap.country-focus path.focus-origin, .worldmap.country-focus .focus-origin > path,
+.worldmap.country-focus g.focus-origin > path {
+  fill: #dc2626 !important; opacity: 1 !important;
+  filter: drop-shadow(0 0 6px rgba(220,38,38,.5)) !important;
+}
+@keyframes mapPulse {
+  0%, 100% { opacity: 1; filter: brightness(1) drop-shadow(0 0 0 transparent) }
+  50% { opacity: .85; filter: brightness(1.5) drop-shadow(0 0 12px rgba(59,130,246,.7)) }
+}
+.worldmap .pulse path, .worldmap path.pulse, .worldmap .pulse > path {
+  animation: mapPulse 2s ease-in-out infinite;
+}
+.map-legend {
+  display: flex; align-items: center; gap: 6px; justify-content: center;
+  margin-top: 8px; font-size: 10px; color: var(--fg3);
+}
+.map-legend-swatch {
+  width: 12px; height: 8px;
+}
+.map-tip {
+  position: fixed; padding: 10px 14px; font-size: 12px;
+  pointer-events: auto; z-index: 100; max-width: 360px; color: var(--fg2); line-height: 1.4;
+  background: var(--bg2); border: 1px solid var(--rule); display: none;
+}
+.map-tip strong { color: var(--fg) }
+.map-tip-count {
+  font-size: 22px; font-weight: 800; color: var(--accent);
+  margin-right: 6px; vertical-align: middle;
+}
+.map-tip-section {
+  border-top: 1px solid var(--rule); margin-top: 6px; padding-top: 5px;
+}
+.map-tip-section-title {
+  font-size: 10px; font-weight: 600; color: var(--fg3); margin-bottom: 3px;
+}
+.map-tip-tag {
+  display: inline-block; font-size: 11px;
+  margin: 1px 2px 1px 0; line-height: 1.5; color: var(--fg2);
+}
+.map-tip-tag-actor { color: var(--fg); font-weight: 600 }
+.map-tip-tag-sector { color: var(--fg2) }
+.map-tip-role {
+  display: inline-block; font-size: 10px; font-weight: 600;
+  vertical-align: middle; margin-left: 6px; color: var(--fg3);
+}
+.map-tip-role-target { color: var(--accent) }
+.map-tip-role-origin { color: var(--danger) }
+.map-tip-role-both { color: var(--fg2) }
+.map-tip-live {
+  display: inline-block; font-size: 9px; font-weight: 700;
+  color: var(--accent);
+  animation: mapPulse 3s ease-in-out infinite;
+  vertical-align: middle; margin-left: 6px;
+}
+.map-tip-new-header {
+  font-size: 10px; font-weight: 700; color: var(--accent);
+  margin-bottom: 3px;
+  display: flex; align-items: center; gap: 4px;
+}
+.map-tip-new-dot {
+  width: 6px; height: 6px; border-radius: 50%; background: var(--accent);
+  animation: mapPulse 3s ease-in-out infinite; flex-shrink: 0;
+}
+.map-tip-articles {
+  border-top: 1px solid var(--rule); margin-top: 6px; padding-top: 5px;
+  max-height: 200px; overflow-y: auto;
+}
+.map-tip-article {
+  display: block; padding: 4px 6px; margin: 2px 0;
+  text-decoration: none; color: var(--fg2); font-size: 11px; line-height: 1.3;
+  transition: background .1s; cursor: pointer;
+}
+.map-tip-article:hover { background: var(--bg3) }
+.map-tip-article-title {
+  color: var(--fg); font-weight: 500; display: -webkit-box;
+  -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.map-tip-article-meta {
+  display: flex; gap: 6px; align-items: center; margin-top: 2px;
+  font-size: 10px; color: var(--fg3);
+}
+.map-tip-sev {
+  display: inline-block; font-size: 9px; font-weight: 700; line-height: 1.6;
+}
+.map-tip-sev-high { color: var(--danger) }
+.map-tip-sev-med { color: var(--warn) }
+.map-tip-sev-low { color: var(--fg3) }
+
+/* Tag bar */
+.tag-bar {
+  display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 10px;
+  padding: 6px 0;
+}
+.tag-pill {
+  font-family: inherit; font-size: 11px; font-weight: 500;
+  padding: 2px 8px; cursor: pointer;
+  border: 1px solid var(--rule); color: var(--fg3); background: transparent;
+  transition: all .12s;
+}
+.tag-pill:hover { color: var(--fg2); background: var(--bg3) }
+.tag-pill.tag-on { border-color: var(--fg3); color: var(--fg); font-weight: 700 }
+
+/* Scatter quadrant labels */
+.scatter-quadrant {
+  position: absolute; font-size: 10px; font-weight: 600;
+  color: var(--fg3); opacity: .2; pointer-events: none;
+}
+
+@media (max-width: 640px) {
+  .filter-label { min-width: 50px }
+  .ac-meta { gap: 8px }
+}
+</style>
+</head>
+<body>
+<div class="nav">
+  <a href="/">flöde</a>
+  <span class="cur">analys</span>
+  <a href="/actor">aktörer</a>
+  <a href="/report">rapport</a>
+  <a href="/brief">brief</a>
+  <a href="/feeds">källor</a>
+  <a href="/settings">inst.</a>
+  <button class="tdot" onclick="toggleTheme()" title="tema"></button>
+  <button class="lang-dot" onclick="toggleLang()"></button>
+</div>
+
+<h1>analys</h1>
+<div class="sub" id="sub"></div>
+
+<div class="toolbar" style="margin-top:10px">
+  <button class="tb on" data-d="0">allt</button>
+  <button class="tb" data-d="1">24h</button>
+  <button class="tb" data-d="7">7d</button>
+  <button class="tb" data-d="30">30d</button>
+  <button class="tb" data-d="90">90d</button>
+  <span class="tb-sep">|</span>
+  <input type="date" id="df" title="från">
+  <span class="tb-sep">–</span>
+  <input type="date" id="dt" title="till">
+</div>
+
+<div class="filter-group" id="filter-toggle" style="cursor:pointer;margin-bottom:2px;user-select:none">
+  <span class="filter-label" style="display:flex;align-items:center;gap:4px"><span id="filter-arrow" style="font-size:9px;transition:transform .2s;display:inline-block">&#9660;</span> filter</span>
+</div>
+<div class="filter-groups" id="filters"></div>
+<div class="stat-grid" id="heroes"></div>
+
+<div class="toolbar" style="margin-bottom:6px">
+  <span style="font-size:11px;font-weight:600;color:var(--fg3);margin-right:4px">sortera</span>
+  <button class="tb sb on" data-sort="relevance">relevans</button>
+  <button class="tb sb" data-sort="frequency">frekvens</button>
+  <button class="tb sb" data-sort="name">namn</button>
+  <button class="tb sb" data-sort="max">max</button>
+  <span class="tb-sep">|</span>
+  <span style="font-size:11px;font-weight:600;color:var(--fg3);margin-right:4px">min</span>
+  <button class="tb ms on" data-ms="0">0</button>
+  <button class="tb ms" data-ms="3">3</button>
+  <button class="tb ms" data-ms="5">5</button>
+  <button class="tb ms" data-ms="7">7</button>
+  <span class="tb-sep">|</span>
+  <button class="tb vb on" data-view="actors">hotaktörer</button>
+  <button class="tb vb" data-view="scatter">scatter</button>
+  <button class="tb vb" data-view="map">karta</button>
+</div>
+<div id="actors-wrap">
+  <div class="actor-list" id="actors"></div>
+</div>
+<div class="tag-bar" id="tag-bar" style="display:none"></div>
+<div id="scatter" class="scatter" style="display:none"></div>
+<div id="map-wrap" style="display:none">
+  <div id="map-viewport">
+    {{ template "worldmap" }}
+    <div class="map-zoom-ctrl">
+      <button class="map-zoom-btn" id="map-zin" title="zooma in">+</button>
+      <button class="map-zoom-btn" id="map-zout" title="zooma ut">&minus;</button>
+      <button class="map-zoom-btn" id="map-zreset" title="återställ" style="font-size:12px">⟳</button>
+      <button class="map-zoom-btn" id="map-fs" title="fullskärm" style="font-size:13px;margin-top:4px">&#x26F6;</button>
+    </div>
+  </div>
+  <div class="map-tip" id="map-tip"></div>
+  <div class="map-legend">
+    <span>mål:</span>
+    <span class="map-legend-swatch" style="background:#1e3a5f"></span>
+    <span class="map-legend-swatch" style="background:#1d4ed8"></span>
+    <span class="map-legend-swatch" style="background:#2563eb"></span>
+    <span class="map-legend-swatch" style="background:#3b82f6"></span>
+    <span class="map-legend-swatch" style="background:#60a5fa"></span>
+    <span class="map-legend-swatch" style="background:#93c5fd"></span>
+    <span style="margin-right:10px">många</span>
+    <span>angripare:</span>
+    <span class="map-legend-swatch" style="background:#7f1d1d"></span>
+    <span class="map-legend-swatch" style="background:#dc2626"></span>
+    <span class="map-legend-swatch" style="background:#f87171"></span>
+  </div>
+  <div class="map-updated" id="map-updated"></div>
+</div>
+
+<div class="data-note" id="data-note"></div>
+
+<script>
+function toggleTheme(){const r=document.documentElement,c=r.getAttribute("data-theme"),n=c==="light"?"dark":c==="dark"?"":"light";if(n){r.setAttribute("data-theme",n);localStorage.setItem("theme",n)}else{r.removeAttribute("data-theme");localStorage.removeItem("theme")}}
+const sv=localStorage.getItem("theme");if(sv)document.documentElement.setAttribute("data-theme",sv);
+
+let _allArticles={{json .Articles}};
+const MAP_ALERT_MINUTES={{json .MapAlertMinutes}}||60;
+let A=_allArticles.filter(a=>a.threat_actor);
+let _lastGenerated="";
+const defaultTags={{json .DefaultTags}};
+let activeTags={
+  regions:new Set(defaultTags.regions||[]),
+  sectors:new Set(defaultTags.sectors||[]),
+  activities:new Set(defaultTags.activities||[]),
+};
+function parseUTC(s){if(!s)return null;const d=new Date(s.endsWith('Z')?s:s+'Z');return isNaN(d)?null:d;}
+// Freshness curve: [hours, boost] — tiebreaker, not dominant (max 0.75)
+const _FRESH=[[0,0.75],[3,0.68],[6,0.6],[12,0.5],[24,0.4],[48,0.33],[72,0.28],[96,0.23],[120,0.19],[144,0.15],[168,0.13],[336,0.06],[720,0.025],[2160,0]];
+function _freshness(hrs){
+  if(hrs<=0)return _FRESH[0][1];
+  for(let i=1;i<_FRESH.length;i++){
+    if(hrs<=_FRESH[i][0]){
+      const[h0,v0]=_FRESH[i-1],[h1,v1]=_FRESH[i];
+      return v0+(v1-v0)*(hrs-h0)/(h1-h0);
+    }
+  }
+  return 0;
+}
+function computeRelevance(a){
+  let rel=0;
+  // Freshness: tiebreaker (0–0.75)
+  const _pd=parseUTC(a.published);
+  const hrs=_pd?(Date.now()-_pd.getTime())/3.6e6:999;
+  rel+=_freshness(hrs);
+  // Scope: 1-5 → 0.5–2.5
+  rel+=(a.scope||1)*0.5;
+  // Novelty: 1-3 → 0.5–1.5
+  rel+=(a.novelty||1)*0.5;
+  // Verified: confirmed = much more relevant (+1.5)
+  if(a.verified)rel+=1.5;
+  // Build active geo sets from top filters + tag bar
+  const _aR=new Set(); // active regions
+  const _aC=new Set(); // active countries
+  if(filters.region)filters.region.forEach(r=>_aR.add(r));
+  if(filters.country)filters.country.forEach(c=>_aC.add(c));
+  if(activeTags.regions)activeTags.regions.forEach(v=>{
+    if(COUNTRY_TO_REGION[v])_aC.add(v); else _aR.add(v);
+  });
+  // Geographic bonus: +2.5 for region match, +1.0 extra for direct country
+  if(_aR.size>0||_aC.size>0){
+    let geoMatch=false, directCountry=false;
+    // Check region match (article.region vs active regions)
+    for(const s of _aR){
+      if(s===a.region){geoMatch=true;break;}
+      const inc=regionIncludes[s];
+      if(inc&&inc.has(a.region)){geoMatch=true;break;}
+    }
+    // Check country match + country-to-region cross-reference
+    for(const c of(a.country||"").split(/,\s*/)){
+      if(!c)continue;
+      if(_aC.has(c)){geoMatch=true;directCountry=true;break;}
+      if(!geoMatch){
+        const cRegion=COUNTRY_TO_REGION[c];
+        if(cRegion){
+          for(const s of _aR){
+            if(s===cRegion){geoMatch=true;break;}
+            const inc=regionIncludes[s];
+            if(inc&&inc.has(cRegion)){geoMatch=true;break;}
+          }
+        }
+      }
+    }
+    if(geoMatch)rel+=2.5;
+    if(directCountry)rel+=1.0;
+  }
+  // Sector/activity bonus from top filters + tag bar
+  const _aS=new Set();
+  if(filters.sector)filters.sector.forEach(s=>_aS.add(s));
+  if(activeTags.sectors)activeTags.sectors.forEach(s=>_aS.add(s));
+  if(_aS.size>0&&a.sector&&_aS.has(a.sector))rel+=0.75;
+  const _aA=new Set();
+  if(filters.activity)filters.activity.forEach(s=>_aA.add(s));
+  if(activeTags.activities)activeTags.activities.forEach(s=>_aA.add(s));
+  if(_aA.size>0&&a.activity_type&&_aA.has(a.activity_type))rel+=0.5;
+  return Math.min(10,Math.round(rel*100)/100);
+}
+function computeThreatLevel(a){
+  const v=a.verified?1:0;
+  return Math.min(10,Math.max(1,(a.severity||0)*0.65+v*0.5+(a.scope||1)*0.25+(a.novelty||1)*0.35));
+}
+function scoreTip(a){
+  const sev=(a.severity||0).toFixed(2),v=a.verified?'ja (+0.5)':'nej',sc=a.scope||1,nov=a.novelty||1;
+  const base=Math.min(10,Math.max(1,(a.severity||0)*0.65+(a.verified?0.5:0)+sc*0.25+nov*0.35));
+  let t=`Score: ${a.score.toFixed(2)}\n\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\nSeverity: ${sev} (\u00d70.65 = ${((a.severity||0)*0.65).toFixed(2)})\nVerified: ${v}\nScope: ${sc}/5 (\u00d70.25 = ${(sc*0.25).toFixed(2)})\nNovelty: ${nov}/3 (\u00d70.35 = ${(nov*0.35).toFixed(2)})\nBas: ${base.toFixed(2)}`;
+  return t;
+}
+let tD=0,dF=null,dT=null,filters={},sortMode="relevance",minScore=0;
+const expandedGroups=new Set();
+const esc=s=>{const d=document.createElement("span");d.textContent=s;return d.innerHTML.replace(/"/g,"&quot;").replace(/'/g,"&#39;")};
+const _L=localStorage.getItem("lang")==="en"?"en":"sv";
+const S=_L==="en"?{
+  articles:"articles",unique_actors:"unique actors",most_active:"most active",
+  no_identified:"none identified",common_type:"most common type",avg_score:"avg score",
+  sectors_affected:"sectors affected",in_period:"in selected period",
+  no_actors:"no identified actors for selected filters",unknown_type:"unknown type",
+  relevance_label:"relevance",severity_label:"severity",
+  relevance_ax:"relevance →",severity_ax:"severity →",
+  articles_total:"actor-linked articles",total_all:"total",matches:"match",filter_w:"filter",
+  data_from:"Data from",days:"day",days_p:"days",articles_accumulated:"articles accumulated",
+  dataset_grows:"dataset grows with each run",
+  sort_label:"SORT",sort_relevance:"relevance",sort_frequency:"frequency",
+  sort_name:"name",sort_max:"max",min_label:"MIN",
+  activity:"activity",few:"few",many:"many",
+  more_suffix:"more",
+}:{
+  articles:"artiklar",unique_actors:"unika aktörer",most_active:"mest aktiv",
+  no_identified:"inga identifierade",common_type:"vanligaste typ",avg_score:"medelpoäng",
+  sectors_affected:"sektorer drabbade",in_period:"i vald period",
+  no_actors:"inga identifierade aktörer för valda filter",unknown_type:"okänd typ",
+  relevance_label:"relevans",severity_label:"allvarlighet",
+  relevance_ax:"relevans →",severity_ax:"allvarlighetsgrad →",
+  articles_total:"aktörslänkade artiklar",total_all:"totalt",matches:"matchar",filter_w:"filter",
+  data_from:"Data från",days:"dag",days_p:"dagar",articles_accumulated:"artiklar ackumulerade",
+  dataset_grows:"datamängden växer med varje körning",
+  sort_label:"SORTERA",sort_relevance:"relevans",sort_frequency:"frekvens",
+  sort_name:"namn",sort_max:"max",min_label:"MIN",
+  activity:"aktivitet",few:"få",many:"många",
+  more_suffix:"till",
+};
+
+const NIS2_SECTOR = _L==="en" ? {
+  "Energy": "NIS2 Annex I — Electricity, oil, gas, district heating, hydrogen",
+  "Transport": "NIS2 Annex I — Air, rail, water, road transport",
+  "Banking": "NIS2 Annex I — Credit institutions per CRD",
+  "Financial market infrastructure": "NIS2 Annex I — Trading venues, central counterparties",
+  "Healthcare": "NIS2 Annex I — Healthcare providers, laboratories, pharmaceuticals, medical devices",
+  "Drinking water": "NIS2 Annex I — Drinking water suppliers and distributors",
+  "Wastewater": "NIS2 Annex I — Wastewater treatment plants and networks",
+  "Digital infrastructure": "NIS2 Annex I — IXP, DNS, TLD, cloud, datacenters, CDN, trust services",
+  "ICT services": "NIS2 Annex I — Managed services and managed security services (MSP/MSSP)",
+  "Public administration": "NIS2 Annex I — Central government entities",
+  "Space": "NIS2 Annex I — Operators of ground-based space infrastructure",
+  "Postal services": "NIS2 Annex II — Postal and courier service providers",
+  "Waste management": "NIS2 Annex II — Collection, transport and treatment of waste",
+  "Chemicals": "NIS2 Annex II — Manufacture, production and distribution of chemicals",
+  "Food": "NIS2 Annex II — Production, processing and distribution of food",
+  "Manufacturing": "NIS2 Annex II — Medical devices, electronics, vehicles, machinery",
+  "Digital providers": "NIS2 Annex II — Marketplaces, search engines, social platforms",
+  "Research": "NIS2 Annex II — Research organisations",
+} : {
+  "Energi": "NIS2 Bilaga I — El, olja, gas, fjärrvärme, vätgas",
+  "Transporter": "NIS2 Bilaga I — Luft, järnväg, vatten, vägtransport",
+  "Bankverksamhet": "NIS2 Bilaga I — Kreditinstitut enligt CRD",
+  "Finansmarknadsinfrastruktur": "NIS2 Bilaga I — Handelsplatser, centrala motparter",
+  "Hälso- och sjukvård": "NIS2 Bilaga I — Vårdgivare, laboratorier, läkemedel, medicintekniska produkter",
+  "Dricksvatten": "NIS2 Bilaga I — Leverantörer och distributörer av dricksvatten",
+  "Avloppsvatten": "NIS2 Bilaga I — Avloppsreningsverk och avloppsnät",
+  "Digital infrastruktur": "NIS2 Bilaga I — IXP, DNS, TLD, moln, datacenter, CDN, betrodda tjänster",
+  "IKT-tjänster": "NIS2 Bilaga I — Managed services och managed security services (MSP/MSSP)",
+  "Offentlig förvaltning": "NIS2 Bilaga I — Statliga myndigheter på central nivå",
+  "Rymden": "NIS2 Bilaga I — Operatörer av markbaserad rymdinfrastruktur",
+  "Post och bud": "NIS2 Bilaga II — Tillhandahållare av posttjänster och budtjänster",
+  "Avfallshantering": "NIS2 Bilaga II — Insamling, transport och behandling av avfall",
+  "Kemikalier": "NIS2 Bilaga II — Tillverkning, produktion och distribution av kemikalier",
+  "Livsmedel": "NIS2 Bilaga II — Produktion, bearbetning och distribution av livsmedel",
+  "Tillverkning": "NIS2 Bilaga II — Medicinteknisk, elektronik, fordon, maskiner",
+  "Digitala leverantörer": "NIS2 Bilaga II — Marknadsplatser, sökmotorer, sociala plattformar",
+  "Forskning": "NIS2 Bilaga II — Forskningsorganisationer",
+};
+const sectorTip = s => NIS2_SECTOR[_tr(s,"sector")] || NIS2_SECTOR[s] || "";
+
+const filterDefs=[
+  {key:"activity",field:"activity_type", label:_L==="en"?"activity":"aktivitet"},
+  {key:"sector",  field:"sector",        label:_L==="en"?"sector":"sektor"},
+  {key:"country", field:"country",       label:_L==="en"?"country":"drabbat land"},
+  {key:"region",  field:"region",        label:_L==="en"?"region":"drabbad region"},
+  {key:"type",    field:"actor_type",    label:_L==="en"?"actor type":"aktörstyp"},
+];
+
+function timeFilt(a){
+  if(!a.published)return false;
+  const _d=parseUTC(a.published);const t=_d?_d.getTime():0,now=Date.now();
+  if(tD>0&&now-t>tD*864e5)return false;
+  if(dF&&t<dF.getTime())return false;
+  if(dT){const e=new Date(dT);e.setDate(e.getDate()+1);if(t>=e.getTime())return false}
+  return true;
+}
+const regionIncludes={"Europa":new Set(["Europa","Norden"])};
+// Map Swedish country names to their region for cross-field filtering
+const COUNTRY_TO_REGION = {
+  "Sverige":"Norden","Danmark":"Norden","Norge":"Norden","Finland":"Norden","Island":"Norden",
+  "USA":"Nordamerika","Kanada":"Nordamerika","Mexiko":"Nordamerika",
+  "Brasilien":"Sydamerika","Argentina":"Sydamerika","Colombia":"Sydamerika","Chile":"Sydamerika","Peru":"Sydamerika","Venezuela":"Sydamerika","Ecuador":"Sydamerika",
+  "Storbritannien":"Europa","Frankrike":"Europa","Tyskland":"Europa","Italien":"Europa","Spanien":"Europa",
+  "Nederländerna":"Europa","Belgien":"Europa","Schweiz":"Europa","Österrike":"Europa","Portugal":"Europa",
+  "Polen":"Europa","Tjeckien":"Europa","Rumänien":"Europa","Ungern":"Europa","Grekland":"Europa",
+  "Irland":"Europa","Bulgarien":"Europa","Kroatien":"Europa","Slovakien":"Europa",
+  "Estland":"Europa","Lettland":"Europa","Litauen":"Europa","Slovenien":"Europa","Luxemburg":"Europa",
+  "Serbien":"Europa","Albanien":"Europa","Nordmakedonien":"Europa","Montenegro":"Europa","Bosnien":"Europa",
+  "Ryssland":"Östeuropa","Ukraina":"Östeuropa","Belarus":"Östeuropa","Moldavien":"Östeuropa",
+  "Georgien":"Östeuropa","Armenien":"Östeuropa","Azerbajdzjan":"Östeuropa",
+  "Kina":"Asien","Japan":"Asien","Sydkorea":"Asien","Nordkorea":"Asien",
+  "Indien":"Asien","Pakistan":"Asien","Bangladesh":"Asien","Sri Lanka":"Asien",
+  "Indonesien":"Asien","Malaysia":"Asien","Thailand":"Asien","Vietnam":"Asien","Filippinerna":"Asien",
+  "Singapore":"Asien","Myanmar":"Asien","Kambodja":"Asien","Laos":"Asien","Taiwan":"Asien",
+  "Uzbekistan":"Asien","Kazakstan":"Asien","Afghanistan":"Asien",
+  "Iran":"Mellanöstern","Irak":"Mellanöstern","Saudiarabien":"Mellanöstern","Förenade Arabemiraten":"Mellanöstern",
+  "Israel":"Mellanöstern","Turkiet":"Mellanöstern","Qatar":"Mellanöstern","Kuwait":"Mellanöstern",
+  "Bahrain":"Mellanöstern","Oman":"Mellanöstern","Jordanien":"Mellanöstern","Libanon":"Mellanöstern",
+  "Egypten":"Afrika","Sydafrika":"Afrika","Nigeria":"Afrika","Kenya":"Afrika","Etiopien":"Afrika",
+  "Marocko":"Afrika","Algeriet":"Afrika","Tunisien":"Afrika","Ghana":"Afrika","Tanzania":"Afrika",
+  "Uganda":"Afrika","Mozambique":"Afrika","Angola":"Afrika",
+  "Australien":"Oceanien","Nya Zeeland":"Oceanien"
+};
+function matchRegion(article, selected) {
+  // First check the article's own region field
+  const val = article.region || "";
+  for (const s of selected) {
+    if (s === val) return true;
+    const inc = regionIncludes[s];
+    if (inc && inc.has(val)) return true;
+  }
+  // Also check if any target country belongs to the selected region
+  if (article.country) {
+    const parts = article.country.split(/,\s*/);
+    for (const c of parts) {
+      const cRegion = COUNTRY_TO_REGION[c];
+      if (!cRegion) continue;
+      for (const s of selected) {
+        if (s === cRegion) return true;
+        const inc = regionIncludes[s];
+        if (inc && inc.has(cRegion)) return true;
+      }
+    }
+  }
+  return false;
+}
+function multiMatch(val,selected){
+  if(!val)return false;
+  // Handle comma-separated values: "USA, Tyskland" matches if any part is in selected
+  const parts=val.split(/,\s*/);
+  for(const p of parts){ if(selected.has(p))return true; }
+  return false;
+}
+function filt(){
+  return A.filter(a=>{
+    if(!timeFilt(a))return false;
+    if(minScore>0&&a.score<minScore)return false;
+    for(const[key,vals]of Object.entries(filters)){
+      const fd=filterDefs.find(f=>f.key===key);
+      if(!fd)continue;
+      if(fd.key==="region"?!matchRegion(a,vals):!multiMatch(a[fd.field],vals))return false;
+    }
+    return true;
+  });
+}
+function topN(arr,f,n){
+  const m=new Map();arr.forEach(a=>{const v=a[f];if(v)m.set(v,(m.get(v)||0)+1)});
+  return[...m.entries()].sort((a,b)=>b[1]-a[1]).slice(0,n||12);
+}
+
+function buildFilters(){
+  const el=document.getElementById("filters");el.innerHTML="";
+  const tf=A.filter(timeFilt);
+  filterDefs.forEach(fd=>{
+    const pool=tf.filter(a=>{
+      for(const[key,vals]of Object.entries(filters)){
+        if(key===fd.key)continue;
+        const o=filterDefs.find(f=>f.key===key);
+        if(o&&(o.key==="region"?!matchRegion(a,vals):!multiMatch(a[o.field],vals)))return false;
+      }return true;
+    });
+    const counts=new Map();
+    pool.forEach(a=>{
+      const v=a[fd.field];
+      if(!v||(fd.key==="region"||fd.key==="country")&&v==="Globalt")return;
+      // Split comma-separated country values into individual filter buttons
+      if(fd.key==="country"&&v.includes(",")){
+        v.split(/,\s*/).forEach(p=>{if(p)counts.set(p,(counts.get(p)||0)+1)});
+      } else if(fd.key==="region"){
+        // Count region from field + derive from country for articles with missing/wrong region
+        const regions=new Set();
+        if(v&&v!=="Globalt")regions.add(v);
+        if(a.country){
+          a.country.split(/,\s*/).forEach(c=>{
+            const r=COUNTRY_TO_REGION[c];
+            if(r)regions.add(r);
+            // Also add parent (Norden → Europa)
+            if(r){for(const[parent,children]of Object.entries(regionIncludes)){if(children.has(r))regions.add(parent)}}
+          });
+        }
+        regions.forEach(r=>{if(r&&r!=="Globalt")counts.set(r,(counts.get(r)||0)+1)});
+      } else {
+        counts.set(v,(counts.get(v)||0)+1);
+      }
+    });
+    if(!counts.size)return;
+    const sorted=[...counts.entries()].sort((a,b)=>b[1]-a[1]);
+    const MAX_VIS=5;
+    const expanded=expandedGroups.has(fd.key);
+    const showAll=expanded||sorted.length<=MAX_VIS+2;
+    const vis=showAll?sorted:sorted.filter((e,i)=>i<MAX_VIS||(filters[fd.key]&&filters[fd.key].has(e[0])));
+    const row=document.createElement("div");row.className="filter-group";
+    row.innerHTML=`<span class="filter-label">${fd.label}</span>`;
+    const trCat={activity:"activity",sector:"sector",country:"country",region:"region",type:"actor_type"};
+    vis.forEach(([val,cnt])=>{
+      const b=document.createElement("button");
+      const on=filters[fd.key]&&filters[fd.key].has(val);
+      b.className="filter-btn"+(on?" active":"");
+      const displayVal=trCat[fd.key]?_tr(val,trCat[fd.key]):val;
+      b.innerHTML=esc(displayVal)+`<span class="n">${cnt}</span>`;
+      if(fd.key==="sector"&&sectorTip(val))b.setAttribute("data-tip",sectorTip(val));
+      b.addEventListener("click",()=>{
+        if(!filters[fd.key])filters[fd.key]=new Set();
+        if(filters[fd.key].has(val)){filters[fd.key].delete(val);if(!filters[fd.key].size)delete filters[fd.key]}
+        else filters[fd.key].add(val);
+        render();
+      });
+      row.appendChild(b);
+    });
+    const hidden=sorted.length-vis.length;
+    if(hidden>0){
+      const mb=document.createElement("button");
+      mb.className="more-btn";mb.textContent=`+${hidden} ${S.more_suffix}`;
+      mb.addEventListener("click",e=>{e.stopPropagation();expandedGroups.add(fd.key);render()});
+      row.appendChild(mb);
+    }
+    if(expanded&&sorted.length>MAX_VIS+2){
+      const cb=document.createElement("button");
+      cb.className="more-btn";cb.textContent="\u2212";
+      cb.addEventListener("click",e=>{e.stopPropagation();expandedGroups.delete(fd.key);render()});
+      row.appendChild(cb);
+    }
+    el.appendChild(row);
+  });
+}
+
+function heroes(v){
+  const actors=new Set(),sectors=new Set();
+  v.forEach(a=>{if(a.threat_actor)actors.add(a.threat_actor);if(a.sector)sectors.add(a.sector)});
+  const topAct=topN(v,"activity_type",1);
+  const topActor=topN(v,"threat_actor",1);
+  const avg=v.length?Math.round(v.reduce((s,a)=>s+a.score,0)/v.length*10)/10:0;
+  document.getElementById("heroes").innerHTML=`
+    <div class="stat-card"><span class="stat-val">${v.length}</span><span class="stat-lbl">${S.articles}</span><div class="hero-detail">${S.in_period}</div></div>
+    <div class="stat-card"><span class="stat-val">${actors.size}</span><span class="stat-lbl">${S.unique_actors}</span><div class="hero-detail">${esc(topActor.length?topActor[0][0]+" "+S.most_active:S.no_identified)}</div></div>
+    <div class="stat-card"><span class="stat-val">${esc(topAct.length?_tr(topAct[0][0],"activity"):"–")}</span><span class="stat-lbl">${S.common_type}</span><div class="hero-detail">${topAct.length?topAct[0][1]+" "+S.articles+" ("+Math.round(topAct[0][1]/v.length*100)+"%)" :""}</div></div>
+    <div class="stat-card"><span class="stat-val">${avg}</span><span class="stat-lbl">${S.avg_score}</span><div class="hero-detail">${sectors.size} ${S.sectors_affected}</div></div>
+  `;
+}
+
+function actorCards(v){
+  const el=document.getElementById("actors");
+  const am=new Map();
+  v.forEach(a=>{
+    if(!a.threat_actor)return;
+    if(!am.has(a.threat_actor))am.set(a.threat_actor,{
+      name:a.threat_actor,type:a.actor_type||"",aliases:a.threat_actor_aliases||"",origin:"",
+      scores:[],articles:[],activities:new Set(),regions:new Set(),countries:new Set(),sectors:new Set()
+    });
+    const e=am.get(a.threat_actor);
+    if(a.origin&&!e.origin)e.origin=a.origin;
+    e.scores.push(a.score);
+    e.articles.push(a);
+    if(a.activity_type)e.activities.add(a.activity_type);
+    if(a.region&&a.region!=="Globalt")e.regions.add(a.region);
+    if(a.country&&a.country!=="Globalt")e.countries.add(a.country);
+    if(a.sector)e.sectors.add(a.sector);
+    if(a.threat_actor_aliases&&a.threat_actor_aliases.length>e.aliases.length)e.aliases=a.threat_actor_aliases;
+  });
+
+  if(!am.size){
+    el.innerHTML=`<div class="none">${S.no_actors}</div>`;
+    return;
+  }
+
+  const actors=[...am.values()].map(a=>({
+    ...a,
+    count:a.scores.length,
+    avg:Math.round(a.scores.reduce((s,v)=>s+v,0)/a.scores.length*10)/10,
+    maxScore:Math.max(...a.scores),
+  }));
+  if(sortMode==="frequency")actors.sort((a,b)=>b.count-a.count||b.avg-a.avg);
+  else if(sortMode==="name")actors.sort((a,b)=>a.name.localeCompare(b.name));
+  else if(sortMode==="max")actors.sort((a,b)=>b.maxScore-a.maxScore||b.avg-a.avg);
+  else actors.sort((a,b)=>b.avg-a.avg||b.maxScore-a.maxScore);
+
+  const allTimes=v.map(a=>{const _d=parseUTC(a.published);return _d?_d.getTime():0}).filter(Boolean);
+  const tMin=Math.min(...allTimes), tMax=Math.max(...allTimes);
+  const tSpan=Math.max(tMax-tMin, 864e5);
+
+  const dayMs=864e5;
+  const firstDay=new Date(tMin); firstDay.setHours(0,0,0,0);
+  const dayTicks=[];
+  for(let d=firstDay.getTime();d<=tMax+dayMs;d+=dayMs) dayTicks.push(d);
+
+  el.innerHTML=actors.map((a,idx)=>{
+    const aliasHtml=a.aliases?`<span class="ac-aliases">${esc(a.aliases)}</span>`:"";
+    const tagParts=[...a.activities].map(t=>esc(_tr(t,"activity")));
+    const originPart=a.origin?esc(_tr(a.origin,"country"))+" →":"";
+    const regionParts=[...a.regions].map(r=>esc(_tr(r,"region")));
+    const countryParts=[...a.countries].map(c=>esc(_tr(c,"country")));
+    const sectorParts=[...a.sectors].map(s=>`<span data-tip="${esc(sectorTip(s))}">${esc(_tr(s,"sector"))}</span>`);
+    const metaParts=[...tagParts];
+    if(originPart)metaParts.push(originPart);
+    metaParts.push(...regionParts,...countryParts,...sectorParts);
+    const metaHtml=metaParts.length?`<div class="meta-line" style="grid-column:1/-1;font-size:11px">${metaParts.join(" · ")}</div>`:"";
+
+    const dots=a.articles.map(art=>{
+      if(!art.published)return"";
+      const _d=parseUTC(art.published);const t=_d?_d.getTime():0;
+      const pct=((t-tMin)/tSpan)*100;
+      const x=Math.max(1,Math.min(99,pct));
+      return`<div class="ac-tl-dot" style="left:${x}%;background:var(--accent)" title="${art.published.slice(0,10)}"></div>`;
+    }).join("");
+
+    const ticks=dayTicks.filter(d=>d>=tMin&&d<=tMax).map(d=>{
+      const pct=((d-tMin)/tSpan)*100;
+      return`<div class="ac-tl-tick" style="left:${pct}%"></div>`;
+    }).join("");
+
+    const d0=new Date(tMin), d1=new Date(tMax);
+    const fmt=d=>`${d.getMonth()+1}/${d.getDate()}`;
+
+    const sortedArts=[...a.articles].sort((x,y)=>y.score-x.score);
+    const artsHtml=sortedArts.map(art=>{
+      const date=art.published?art.published.slice(0,10):"";
+      return`<div class="ac-article">
+        <span class="ac-art-score" title="${esc(scoreTip(art))}">${art.score.toFixed(2)}</span>
+        <div class="ac-art-title"><a href="${esc(art.link)}" target="_blank" onclick="event.stopPropagation()">${esc(art.title)}</a></div>
+        ${art.summary?`<div class="ac-art-summary">${esc(art.summary)}</div>`:""}
+        <div class="ac-art-meta">${esc(art.source)}${date?" · "+date:""}</div>
+      </div>`;
+    }).join("");
+
+    return`<div class="actor-card" data-idx="${idx}">
+      <div class="ac-top">
+        <span class="ac-name">${esc(a.name)}</span>
+        ${aliasHtml}
+        <span class="ac-expand">&#9654;</span>
+      </div>
+      <span class="ac-badge">${esc(a.type?_tr(a.type,"actor_type"):S.unknown_type)}</span>
+      <div class="ac-meta">
+        <div class="ac-stat"><span class="ac-stat-n">${a.count}</span><span class="ac-stat-l">${S.articles}</span></div>
+        <div class="ac-stat"><span class="ac-stat-n">${a.avg}</span><span class="ac-stat-l">${S.relevance_label}</span></div>
+        <div class="ac-stat"><span class="ac-stat-n">${a.maxScore.toFixed(2)}</span><span class="ac-stat-l">${S.sort_max}</span></div>
+        <div class="ac-tl-wrap">
+          <div class="ac-tl-header">
+            <span class="ac-tl-label">${S.activity}</span>
+            <span class="ac-tl-range">${fmt(d0)} – ${fmt(d1)}</span>
+          </div>
+          <div class="ac-tl-track">${ticks}${dots}</div>
+        </div>
+      </div>
+      ${metaHtml}
+      <div class="ac-articles">${artsHtml}</div>
+    </div>`;
+  }).join("");
+
+  el.querySelectorAll(".actor-card").forEach(card=>{
+    card.addEventListener("click",e=>{
+      if(e.target.closest("a"))return;
+      card.classList.toggle("expanded");
+    });
+  });
+}
+
+let currentView = "actors";
+
+// View toggle
+document.querySelectorAll(".vb").forEach(b=>{
+  b.addEventListener("click",()=>{
+    document.querySelectorAll(".vb").forEach(x=>x.classList.remove("on"));
+    b.classList.add("on");
+    currentView=b.dataset.view;
+    if (focusCountry && currentView !== "map") renderMapFocus(null);
+    document.getElementById("actors-wrap").style.display=currentView==="actors"?"":"none";
+    document.getElementById("scatter").style.display=currentView==="scatter"?"":"none";
+    document.getElementById("tag-bar").style.display="none";
+    document.getElementById("map-wrap").style.display=currentView==="map"?"":"none";
+    // Dim sort controls in scatter/map (not applicable), but keep MIN filter active
+    const notActors = currentView !== "actors";
+    document.querySelectorAll(".sb").forEach(x => {
+      x.style.opacity = notActors ? "0.25" : "";
+      x.style.pointerEvents = notActors ? "none" : "";
+    });
+    // Dim only the SORT label, not the MIN label
+    const sortLabel = document.querySelector(".toolbar span[style*='uppercase']");
+    if (sortLabel) { sortLabel.style.opacity = notActors ? "0.25" : ""; }
+    render();
+  });
+});
+
+// Sort buttons
+document.querySelectorAll(".sb").forEach(b=>{
+  b.addEventListener("click",()=>{
+    document.querySelectorAll(".sb").forEach(x=>x.classList.remove("on"));
+    b.classList.add("on");sortMode=b.dataset.sort;render();
+  });
+});
+
+function actorColor(type) {
+  if (type === "Statlig") return "var(--accent)";
+  if (type === "Kriminell") return "var(--warn)";
+  if (type === "Hacktivist") return "var(--danger)";
+  return "var(--fg3)";
+}
+
+function renderTagBar(){
+  const el=document.getElementById("tag-bar");
+  // Collect unique values from all articles
+  const regions=new Set(),sectors=new Set(),activities=new Set();
+  _allArticles.forEach(a=>{
+    if(a.region&&a.region!=="Globalt")regions.add(a.region);
+    if(a.country&&a.country!=="Globalt")a.country.split(/,\s*/).forEach(c=>{if(c)regions.add(c)});
+    if(a.sector)sectors.add(a.sector);
+    if(a.activity_type)activities.add(a.activity_type);
+  });
+  let html="";
+  const mkPill=(val,cat)=>{
+    const on=activeTags[cat].has(val);
+    return`<button class="tag-pill${on?" tag-on":""}" data-cat="${cat}" data-val="${val}">${esc(val)}</button>`;
+  };
+  [...regions].sort().forEach(v=>html+=mkPill(v,"regions"));
+  [...sectors].sort().forEach(v=>html+=mkPill(v,"sectors"));
+  [...activities].sort().forEach(v=>html+=mkPill(v,"activities"));
+  el.innerHTML=html;
+  el.querySelectorAll(".tag-pill").forEach(b=>{
+    b.addEventListener("click",()=>{
+      const cat=b.dataset.cat,val=b.dataset.val;
+      if(activeTags[cat].has(val))activeTags[cat].delete(val);
+      else activeTags[cat].add(val);
+      // Save to localStorage
+      localStorage.setItem("scatter-tags",JSON.stringify({
+        regions:[...activeTags.regions],sectors:[...activeTags.sectors],activities:[...activeTags.activities]
+      }));
+      renderTagBar();
+      render();
+    });
+  });
+}
+// Load saved tags from localStorage
+(function(){
+  try{
+    const saved=JSON.parse(localStorage.getItem("scatter-tags"));
+    if(saved){
+      activeTags.regions=new Set(saved.regions||[]);
+      activeTags.sectors=new Set(saved.sectors||[]);
+      activeTags.activities=new Set(saved.activities||[]);
+    }
+  }catch(e){}
+})();
+
+let scatterState = { actors: [] };
+
+function renderScatter(v) {
+  const el = document.getElementById("scatter");
+
+  const withActor = v.filter(a => a.threat_actor);
+  if (!withActor.length) { el.innerHTML = `<div class="none">${S.no_actors}</div>`; return; }
+
+  const am = new Map();
+  withActor.forEach(a => {
+    if (!am.has(a.threat_actor)) am.set(a.threat_actor, { name: a.threat_actor, type: a.actor_type || "", aliases: "", origin: "", articles: [], countries: new Set(), sectors: new Set(), regions: new Set() });
+    const e = am.get(a.threat_actor);
+    e.articles.push(a);
+    if (a.actor_type && !e.type) e.type = a.actor_type;
+    if (a.origin && !e.origin) e.origin = a.origin;
+    if (a.threat_actor_aliases && a.threat_actor_aliases.length > e.aliases.length) e.aliases = a.threat_actor_aliases;
+    if (a.country && a.country !== "Globalt") a.country.split(/,\s*/).forEach(c => e.countries.add(c));
+    if (a.sector) e.sectors.add(a.sector);
+    if (a.region && a.region !== "Globalt") e.regions.add(a.region);
+  });
+  const actors = [...am.values()].map(a => {
+    const maxScore = Math.max(...a.articles.map(x => x.score || 0));
+    const avgScore = a.articles.reduce((s,x) => s + (x.score||0), 0) / a.articles.length;
+    const maxSeverity = Math.max(...a.articles.map(x => x.severity || 0));
+    const baseRelevance = Math.max(...a.articles.map(x => computeRelevance(x)));
+    // Ongoing activity: logarithmic bonus for actors with many recent articles
+    const now = Date.now();
+    const recent7d = a.articles.filter(x => { const pd = parseUTC(x.published); return pd && (now - pd.getTime()) < 7*24*3.6e6; }).length;
+    const recent48h = a.articles.filter(x => { const pd = parseUTC(x.published); return pd && (now - pd.getTime()) < 48*3.6e6; }).length;
+    const activityBonus = Math.min(2.0, Math.log2(recent7d + 1) * 0.85);
+    // Hot campaign: 3+ articles in 48h = extra boost
+    const hotBonus = recent48h >= 3 ? 0.5 : recent48h >= 2 ? 0.25 : 0;
+    // Small spread from total article count (breaks vertical alignment for similar actors)
+    const freqSpread = Math.min(0.3, a.articles.length * 0.03);
+    const maxRelevance = Math.min(10, Math.round((baseRelevance + activityBonus + hotBonus + freqSpread)*100)/100);
+    const importance = maxSeverity * maxRelevance;
+    return {
+      ...a,
+      freq: a.articles.length,
+      maxScore, avgScore, maxSeverity, maxRelevance, importance,
+    };
+  });
+  // Sort by importance for label priority (higher importance = labeled first in collision resolution)
+  actors.sort((a, b) => b.importance - a.importance);
+  scatterState = { actors };
+
+  // Fixed 0-10 axes: X = relevance, Y = severity
+  const pL = 5, pR = 2, pB = 6, pT = 2;
+  const w = 100 - pL - pR, h = 100 - pB - pT;
+  const xPos = val => pL + (val / 10) * w;
+  const yPos = val => pB + (val / 10) * h;
+
+  let html = '<div class="scatter-ax scatter-ax-x"></div><div class="scatter-ax scatter-ax-y"></div>';
+
+  // X axis ticks 0-10
+  for (let t = 0; t <= 10; t++) {
+    const x = xPos(t);
+    html += `<div class="scatter-grid" style="left:${x}%;bottom:${pB}%;top:${pT}%;width:0;border-left:1px solid var(--fg3);opacity:.12"></div>`;
+    html += `<span class="scatter-lbl" style="left:${x}%;top:100%;transform:translateX(-50%);padding-top:4px">${t}</span>`;
+  }
+  // Y axis ticks 0-10
+  for (let t = 0; t <= 10; t++) {
+    const y = yPos(t);
+    html += `<div class="scatter-grid" style="bottom:${y}%"></div>`;
+    html += `<span class="scatter-lbl" style="right:100%;bottom:${y}%;transform:translateY(50%);padding-right:6px;white-space:nowrap">${t}</span>`;
+  }
+  html += `<span class="scatter-lbl scatter-lbl-axis" style="left:${pL + w/2}%;top:calc(100% + 28px);transform:translateX(-50%)">${S.relevance_ax || 'relevans →'}</span>`;
+  html += `<span class="scatter-lbl scatter-lbl-axis" style="right:calc(100% + 28px);bottom:${pB + h/2}%;transform:rotate(-90deg) translateX(50%);transform-origin:100% 50%;white-space:nowrap">${S.severity_ax || 'allvarlighet →'}</span>`;
+
+  // Place all dots
+  const dotPositions = actors.map((a, i) => {
+    const px = xPos(a.maxRelevance);
+    const py = yPos(a.maxSeverity);
+    const color = actorColor(a.type);
+    const r = Math.min(3 + Math.sqrt(a.freq), 8);
+    return { px, py, color, r, i, name: a.name };
+  });
+
+  // Render dots
+  dotPositions.forEach(d => {
+    html += `<div class="scatter-dot" data-i="${d.i}" style="left:calc(${d.px}% - ${d.r}px);bottom:calc(${d.py}% - ${d.r}px);width:${d.r*2}px;height:${d.r*2}px;background:${d.color};opacity:0.8"></div>`;
+  });
+
+  // Label placement — all positions use calc(pct% + Npx) to match dot coordinate system
+  // Each label stored as {pctX, pxOffX, pctY, pxOffY} for collision via getBoundingClientRect after render
+  const GAP = 10; // px gap between dot edge and label
+
+  // First pass: place labels with simple offset, render to DOM to get real sizes
+  const labelData = actors.map((a, i) => {
+    const d = dotPositions[i];
+    return { name: a.name, dpx: d.px, dpy: d.py, dr: d.r, idx: i };
+  });
+
+  // Render all labels to the right of dots initially
+  labelData.forEach(ld => {
+    const off = Math.round(ld.dr + GAP);
+    html += `<span class="scatter-name" data-li="${ld.idx}" style="left:calc(${ld.dpx}% + ${off}px);bottom:calc(${ld.dpy}% - 6px)">${esc(ld.name)}</span>`;
+  });
+
+  el.innerHTML = html;
+
+  // Second pass: measure real label rects and fix overlaps
+  const labels = el.querySelectorAll(".scatter-name");
+  const dots = el.querySelectorAll(".scatter-dot");
+  const elRect = el.getBoundingClientRect();
+
+  // Get all rects
+  const labelRects = [...labels].map(l => l.getBoundingClientRect());
+  const dotRects = [...dots].map(d => d.getBoundingClientRect());
+
+  function rectsOverlap(a, b, pad) {
+    return a.left < b.right + pad && a.right + pad > b.left && a.top < b.bottom + pad && a.bottom + pad > b.top;
+  }
+
+  // For each label, check if it overlaps any OTHER dot or any previously-placed label
+  const PAD = 4;
+  // Offsets to try: [dxPx, dyPx] from dot center
+  const tryOffsets = (dr) => [
+    [dr + GAP, -6],       // right
+    [dr + GAP, -16],      // upper-right
+    [dr + GAP, 6],        // lower-right
+    [-(GAP + 80), -6],    // left (rough label width)
+    [-(GAP + 80), -16],   // upper-left
+    [-(GAP + 80), 6],     // lower-left
+    [0, -(dr + GAP + 6)], // above
+    [0, dr + GAP],        // below
+  ];
+
+  labelData.forEach((ld, i) => {
+    const myLabel = labels[ld.idx];
+    const myRect = labelRects[ld.idx];
+    const myW = myRect.width;
+
+    // Check if current position overlaps any other dot or earlier label
+    let hasOverlap = false;
+    for (let j = 0; j < dotRects.length; j++) {
+      if (j === ld.idx) continue;
+      if (rectsOverlap(myRect, dotRects[j], PAD)) { hasOverlap = true; break; }
+    }
+    if (!hasOverlap) {
+      for (let j = 0; j < i; j++) {
+        if (rectsOverlap(myRect, labelRects[labelData[j].idx], PAD)) { hasOverlap = true; break; }
+      }
+    }
+
+    if (hasOverlap) {
+      // Try alternative positions
+      for (const [dx, dy] of tryOffsets(ld.dr)) {
+        const actualDx = dx < 0 ? dx + 80 - myW : dx; // adjust left-side offset for real width
+        myLabel.style.left = `calc(${ld.dpx}% + ${Math.round(actualDx)}px)`;
+        myLabel.style.bottom = `calc(${ld.dpy}% + ${Math.round(dy)}px)`;
+        const newRect = myLabel.getBoundingClientRect();
+        let ok = true;
+        // Check vs dots
+        for (let j = 0; j < dotRects.length; j++) {
+          if (j === ld.idx) continue;
+          if (rectsOverlap(newRect, dotRects[j], PAD)) { ok = false; break; }
+        }
+        // Check vs earlier labels
+        if (ok) {
+          for (let j = 0; j < i; j++) {
+            const prevRect = labels[labelData[j].idx].getBoundingClientRect();
+            if (rectsOverlap(newRect, prevRect, PAD)) { ok = false; break; }
+          }
+        }
+        if (ok) {
+          labelRects[ld.idx] = newRect;
+          break;
+        }
+      }
+    }
+  });
+}
+
+// Scatter tooltip
+(function() {
+  const el = document.getElementById("scatter");
+  let tip = null;
+  el.addEventListener("mouseover", e => {
+    const dot = e.target.closest(".scatter-dot");
+    if (!dot) return;
+    const { actors } = scatterState;
+    const i = +dot.dataset.i;
+    const a = actors[i]; if (!a) return;
+    if (!tip) { tip = document.createElement("div"); tip.className = "scatter-tip"; document.body.appendChild(tip); }
+    const activities = [...new Set(a.articles.map(x => x.activity_type).filter(Boolean))];
+    const countries = a.countries ? [...a.countries] : [];
+    const sectors = a.sectors ? [...a.sectors] : [];
+    const regions = a.regions ? [...a.regions] : [];
+    let tipHtml = `<strong>${esc(a.name)}</strong>${a.type ? ' <span style="opacity:.6">· ' + esc(_tr(a.type,"actor_type")) + '</span>' : ''}`;
+    if (a.aliases) tipHtml += `<br><span style="opacity:.5;font-style:italic">${esc(a.aliases)}</span>`;
+    const scoreLbl = "score";
+    const avgLbl = _L==="en" ? "avg" : "snitt";
+    tipHtml += `<br>${a.freq} ${S.articles} · ${scoreLbl} ${a.maxScore.toFixed(1)} · ${avgLbl} ${a.avgScore.toFixed(1)}`;
+    if (activities.length) tipHtml += '<br>' + activities.map(t => `<span style="color:var(--accent)">${esc(_tr(t,"activity"))}</span>`).join(', ');
+    if (a.origin) tipHtml += `<br><span style="opacity:.6">${esc(_tr(a.origin,"country"))}</span> → `;
+    else if (countries.length) tipHtml += '<br>';
+    if (countries.length) tipHtml += countries.map(c => `<span style="color:var(--accent)">${esc(_tr(c,"country"))}</span>`).join(', ');
+    if (regions.length) tipHtml += ' <span style="opacity:.5">(' + regions.map(r => esc(_tr(r,"region"))).join(', ') + ')</span>';
+    if (sectors.length) tipHtml += '<br>' + sectors.map(s => `<span style="color:var(--ok)">${esc(_tr(s,"sector"))}</span>`).join(', ');
+    tip.innerHTML = tipHtml;
+    tip.style.display = "";
+  });
+  el.addEventListener("mousemove", e => { if (tip) { tip.style.left = e.clientX + 14 + "px"; tip.style.top = e.clientY - 10 + "px"; } });
+  el.addEventListener("mouseout", e => { if (e.target.classList.contains("scatter-dot") && tip) tip.style.display = "none"; });
+  el.addEventListener("click", e => {
+    const dot = e.target.closest(".scatter-dot");
+    if (!dot) return;
+    const a = scatterState.actors[+dot.dataset.i];
+    if (a) window.location.href = "/actor?q=" + encodeURIComponent(a.name);
+  });
+})();
+
+/* ── Map Zoom/Pan ─────────────────────────────── */
+(function() {
+  const vp = document.getElementById("map-viewport");
+  const svg = vp && vp.querySelector(".worldmap");
+  if (!vp || !svg) return;
+  let scale = 1, panX = 0, panY = 0;
+  let dragging = false, dragStartX, dragStartY, startPanX, startPanY;
+
+  function clampPan() {
+    const w = vp.clientWidth, h = vp.clientHeight;
+    const maxX = w * (scale - 1), maxY = h * (scale - 1);
+    panX = Math.max(-maxX, Math.min(0, panX));
+    panY = Math.max(-maxY, Math.min(0, panY));
+  }
+  function apply() {
+    clampPan();
+    svg.style.transform = `translate(${panX}px,${panY}px) scale(${scale})`;
+  }
+  window._mapApplyZoom = apply;
+  window._mapZoomState = () => ({ scale, panX, panY });
+
+  vp.addEventListener("wheel", e => {
+    e.preventDefault();
+    const rect = vp.getBoundingClientRect();
+    const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+    const prev = scale;
+    const delta = e.deltaY > 0 ? 0.85 : 1.18;
+    scale = Math.max(1, Math.min(8, scale * delta));
+    // zoom toward cursor
+    panX = mx - (mx - panX) * (scale / prev);
+    panY = my - (my - panY) * (scale / prev);
+    apply();
+  }, { passive: false });
+
+  vp.addEventListener("mousedown", e => {
+    if (e.button !== 0) return;
+    dragging = true; dragStartX = e.clientX; dragStartY = e.clientY;
+    startPanX = panX; startPanY = panY;
+  });
+  window.addEventListener("mousemove", e => {
+    if (!dragging) return;
+    panX = startPanX + (e.clientX - dragStartX);
+    panY = startPanY + (e.clientY - dragStartY);
+    apply();
+  });
+  window.addEventListener("mouseup", () => { dragging = false; });
+
+  document.getElementById("map-zin").addEventListener("click", () => {
+    const prev = scale;
+    scale = Math.min(8, scale * 1.4);
+    const cx = vp.clientWidth / 2, cy = vp.clientHeight / 2;
+    panX = cx - (cx - panX) * (scale / prev);
+    panY = cy - (cy - panY) * (scale / prev);
+    apply();
+  });
+  document.getElementById("map-zout").addEventListener("click", () => {
+    const prev = scale;
+    scale = Math.max(1, scale / 1.4);
+    const cx = vp.clientWidth / 2, cy = vp.clientHeight / 2;
+    panX = cx - (cx - panX) * (scale / prev);
+    panY = cy - (cy - panY) * (scale / prev);
+    apply();
+  });
+  document.getElementById("map-zreset").addEventListener("click", () => {
+    scale = 1; panX = 0; panY = 0; apply();
+  });
+
+  // Touch support
+  let lastTouchDist = 0, touchStartScale = 1;
+  vp.addEventListener("touchstart", e => {
+    if (e.touches.length === 1) {
+      dragging = true; dragStartX = e.touches[0].clientX; dragStartY = e.touches[0].clientY;
+      startPanX = panX; startPanY = panY;
+    } else if (e.touches.length === 2) {
+      dragging = false;
+      lastTouchDist = Math.hypot(e.touches[1].clientX - e.touches[0].clientX, e.touches[1].clientY - e.touches[0].clientY);
+      touchStartScale = scale;
+    }
+  }, { passive: true });
+  vp.addEventListener("touchmove", e => {
+    if (e.touches.length === 1 && dragging) {
+      e.preventDefault();
+      panX = startPanX + (e.touches[0].clientX - dragStartX);
+      panY = startPanY + (e.touches[0].clientY - dragStartY);
+      apply();
+    } else if (e.touches.length === 2) {
+      e.preventDefault();
+      const dist = Math.hypot(e.touches[1].clientX - e.touches[0].clientX, e.touches[1].clientY - e.touches[0].clientY);
+      const prev = scale;
+      scale = Math.max(1, Math.min(8, touchStartScale * (dist / lastTouchDist)));
+      const rect = vp.getBoundingClientRect();
+      const cx = (e.touches[0].clientX + e.touches[1].clientX) / 2 - rect.left;
+      const cy = (e.touches[0].clientY + e.touches[1].clientY) / 2 - rect.top;
+      panX = cx - (cx - panX) * (scale / prev);
+      panY = cy - (cy - panY) * (scale / prev);
+      apply();
+    }
+  }, { passive: false });
+  vp.addEventListener("touchend", () => { dragging = false; });
+})();
+
+/* ── Map Focus Mode ───────────────────────────── */
+(function() {
+  const btn = document.getElementById("map-fs");
+  if (!btn) return;
+  function isFocus() { return document.body.classList.contains("map-focus"); }
+  function enter() {
+    document.body.classList.add("map-focus");
+    btn.innerHTML = "&#x2715;";
+    btn.title = _L === "en" ? "exit focus" : "avsluta fokus";
+  }
+  function exit() {
+    document.body.classList.remove("map-focus");
+    btn.innerHTML = "&#x26F6;";
+    btn.title = _L === "en" ? "focus" : "fokus";
+    if (window._mapApplyZoom) window._mapApplyZoom();
+  }
+  btn.addEventListener("click", () => { isFocus() ? exit() : enter(); });
+  document.addEventListener("keydown", e => { if (e.key === "Escape" && isFocus()) exit(); });
+})();
+
+/* ── World Map ─────────────────────────────────── */
+const COUNTRY_ISO = {
+  "Sverige":"SE","Danmark":"DK","Norge":"NO","Finland":"FI","Island":"IS",
+  "USA":"US","Kanada":"CA","Mexiko":"MX","Brasilien":"BR","Argentina":"AR","Colombia":"CO","Chile":"CL","Peru":"PE","Venezuela":"VE","Ecuador":"EC",
+  "Storbritannien":"GB","Frankrike":"FR","Tyskland":"DE","Italien":"IT","Spanien":"ES",
+  "Nederländerna":"NL","Belgien":"BE","Schweiz":"CH","Österrike":"AT","Portugal":"PT",
+  "Polen":"PL","Tjeckien":"CZ","Rumänien":"RO","Ungern":"HU","Grekland":"GR",
+  "Irland":"IE","Ukraina":"UA","Bulgarien":"BG","Kroatien":"HR","Slovakien":"SK",
+  "Estland":"EE","Lettland":"LV","Litauen":"LT","Slovenien":"SI","Luxemburg":"LU",
+  "Serbien":"RS","Albanien":"AL","Nordmakedonien":"MK","Montenegro":"ME","Bosnien":"BA",
+  "Ryssland":"RU","Kina":"CN","Japan":"JP","Sydkorea":"KR","Nordkorea":"KP",
+  "Indien":"IN","Pakistan":"PK","Bangladesh":"BD","Sri Lanka":"LK",
+  "Indonesien":"ID","Malaysia":"MY","Thailand":"TH","Vietnam":"VN","Filippinerna":"PH",
+  "Singapore":"SG","Myanmar":"MM","Kambodja":"KH","Laos":"LA","Taiwan":"TW",
+  "Iran":"IR","Irak":"IQ","Saudiarabien":"SA","Förenade Arabemiraten":"AE",
+  "Israel":"IL","Turkiet":"TR","Egypten":"EG","Sydafrika":"ZA","Nigeria":"NG",
+  "Kenya":"KE","Etiopien":"ET","Marocko":"MA","Algeriet":"DZ","Tunisien":"TN",
+  "Ghana":"GH","Tanzania":"TZ","Uganda":"UG","Mozambique":"MZ","Angola":"AO",
+  "Australien":"AU","Nya Zeeland":"NZ",
+  "Qatar":"QA","Kuwait":"KW","Bahrain":"BH","Oman":"OM","Jordanien":"JO","Libanon":"LB",
+  "Afghanistan":"AF","Uzbekistan":"UZ","Kazakstan":"KZ","Georgien":"GE","Armenien":"AM","Azerbajdzjan":"AZ",
+  "Belarus":"BY","Moldavien":"MD",
+  "Norden":"","Europa":"","Globalt":"","Mellanöstern":"","Nordamerika":"","Sydamerika":"","Asien":"","Afrika":"","Oceanien":""
+};
+
+const ISO_COUNTRY = {};
+for (const [sv, iso] of Object.entries(COUNTRY_ISO)) {
+  if (iso) ISO_COUNTRY[iso] = sv;
+}
+
+let mapCountryData = {};
+let focusCountry = null;
+
+function renderMap(articles) {
+  const svg = document.querySelector("#map-wrap .worldmap");
+  if (!svg) return;
+  document.querySelectorAll("#map-wrap [class*=heat-]").forEach(el => {
+    el.classList.remove("heat-1","heat-2","heat-3","heat-4","heat-5","heat-6");
+  });
+  document.querySelectorAll("#map-wrap [class*=origin-]").forEach(el => {
+    el.classList.remove("origin-1","origin-2","origin-3","origin-target");
+  });
+  document.querySelectorAll("#map-wrap .pulse").forEach(el => {
+    el.classList.remove("pulse");
+  });
+
+  const countryCount = new Map();
+  const originCount = new Map();
+  const countryActorInfo = new Map();
+  const countrySectors = new Map();
+  const countryArticles = new Map();
+  const countryNewest = new Map();
+  const originArticles = new Map();
+  // Build active filter sets for map rendering
+  const activeRegions = filters.region || null;
+  const activeCountries = filters.country || null;
+  function countryMatchesFilters(name) {
+    if (activeCountries && !activeCountries.has(name)) return false;
+    if (activeRegions) {
+      const r = COUNTRY_TO_REGION[name];
+      if (!r) return false;
+      let ok = false;
+      for (const s of activeRegions) {
+        if (s === r) { ok = true; break; }
+        const inc = regionIncludes[s];
+        if (inc && inc.has(r)) { ok = true; break; }
+      }
+      if (!ok) return false;
+    }
+    return true;
+  }
+
+  articles.forEach(a => {
+    // Track target countries (filter-aware)
+    if (!a.country || a.country === "Globalt") {
+      // Still track origins for articles with no specific target country
+      if (a.origin && a.origin !== "Globalt") {
+        a.origin.split(/,\s*/).forEach(c => {
+          const iso = COUNTRY_ISO[c.trim()];
+          if (!iso) return;
+          originCount.set(iso, (originCount.get(iso) || 0) + 1);
+          if (!originArticles.has(iso)) originArticles.set(iso, []);
+          originArticles.get(iso).push(a);
+        });
+      }
+      return;
+    }
+    const countries = a.country.split(/,\s*/);
+    // Only include countries that match active region/country filters
+    const matchedCountries = countries.filter(c => countryMatchesFilters(c.trim()));
+    if (matchedCountries.length === 0) return;
+    // Track origins only for articles with matching target countries
+    if (a.origin && a.origin !== "Globalt") {
+      a.origin.split(/,\s*/).forEach(c => {
+        const iso = COUNTRY_ISO[c.trim()];
+        if (!iso) return;
+        originCount.set(iso, (originCount.get(iso) || 0) + 1);
+        if (!originArticles.has(iso)) originArticles.set(iso, []);
+        originArticles.get(iso).push(a);
+      });
+    }
+    matchedCountries.forEach(c => {
+      const iso = COUNTRY_ISO[c.trim()];
+      if (!iso) return;
+      countryCount.set(iso, (countryCount.get(iso) || 0) + 1);
+      if (!countryArticles.has(iso)) countryArticles.set(iso, []);
+      countryArticles.get(iso).push(a);
+      const pubDate = parseUTC(a.published);
+      if (pubDate) {
+        const existing = countryNewest.get(iso);
+        if (!existing || pubDate > existing) countryNewest.set(iso, pubDate);
+      }
+      if (a.threat_actor) {
+        if (!countryActorInfo.has(iso)) countryActorInfo.set(iso, new Map());
+        const actors = countryActorInfo.get(iso);
+        if (!actors.has(a.threat_actor)) actors.set(a.threat_actor, { count: 0, type: "", sectors: new Map() });
+        const info = actors.get(a.threat_actor);
+        info.count++;
+        if (a.actor_type && !info.type) info.type = a.actor_type;
+        if (a.sector) a.sector.split(/,\s*/).forEach(s => { if (s) info.sectors.set(s, (info.sectors.get(s) || 0) + 1); });
+      }
+      if (a.sector) {
+        if (!countrySectors.has(iso)) countrySectors.set(iso, new Map());
+        const secs = countrySectors.get(iso);
+        a.sector.split(/,\s*/).forEach(s => { if (s) secs.set(s, (secs.get(s) || 0) + 1); });
+      }
+    });
+  });
+
+  if (!countryCount.size && !originCount.size) return;
+
+  const maxCount = Math.max(1, ...countryCount.values());
+  const maxOrigin = Math.max(1, ...originCount.values());
+  const pulseThreshold = Date.now() - MAP_ALERT_MINUTES * 60 * 1000;
+
+  mapCountryData = {};
+
+  // Apply origin (attacker) classes first
+  originCount.forEach((count, iso) => {
+    const isAlsoTarget = countryCount.has(iso);
+    const el = document.getElementById(iso);
+    if (!el) return;
+    if (isAlsoTarget) {
+      el.classList.add("origin-target");
+    } else {
+      const pct = count / maxOrigin;
+      const lvl = pct >= 0.6 ? 3 : pct >= 0.25 ? 2 : 1;
+      el.classList.add("origin-" + lvl);
+    }
+    // Build data for pure-origin countries (no target data)
+    if (!isAlsoTarget) {
+      const arts = (originArticles.get(iso) || [])
+        .sort((a,b) => { const da = parseUTC(a.published), db = parseUTC(b.published); return (db||0) - (da||0); })
+        .slice(0, 10);
+      mapCountryData[iso] = { count, name: ISO_COUNTRY[iso] || iso, role: "origin",
+        topActors: [], topSectors: [], articles: arts, pulsing: false };
+    }
+  });
+
+  // Apply target heat classes
+  countryCount.forEach((count, iso) => {
+    const pct = count / maxCount;
+    let heat;
+    if (pct >= 0.85) heat = 6;
+    else if (pct >= 0.65) heat = 5;
+    else if (pct >= 0.45) heat = 4;
+    else if (pct >= 0.25) heat = 3;
+    else if (pct >= 0.1) heat = 2;
+    else heat = 1;
+
+    const el = document.getElementById(iso);
+    if (el && !originCount.has(iso)) el.classList.add("heat-" + heat);
+
+    const topActors = countryActorInfo.has(iso)
+      ? [...countryActorInfo.get(iso).entries()]
+          .sort((a,b) => b[1].count - a[1].count)
+          .slice(0, 5)
+          .map(([name, info]) => ({
+            name, count: info.count, type: info.type,
+            sectors: [...info.sectors.entries()].sort((a,b) => b[1] - a[1]).slice(0, 3).map(([s]) => s)
+          }))
+      : [];
+    const topSectors = countrySectors.has(iso)
+      ? [...countrySectors.get(iso).entries()].sort((a,b) => b[1] - a[1]).slice(0, 4)
+      : [];
+    const arts = (countryArticles.get(iso) || [])
+      .sort((a,b) => { const da = parseUTC(a.published), db = parseUTC(b.published); return (db||0) - (da||0); })
+      .slice(0, 10);
+    const newest = countryNewest.get(iso);
+    const pulsing = newest && newest.getTime() > pulseThreshold;
+    if (pulsing && el) el.classList.add("pulse");
+    const role = originCount.has(iso) ? "both" : "target";
+    const oCount = originCount.get(iso) || 0;
+    mapCountryData[iso] = { count, originCount: oCount, heat, role, name: ISO_COUNTRY[iso] || iso, topActors, topSectors, articles: arts, pulsing: !!pulsing };
+  });
+}
+
+/* ── Map Focus Mode (click a country) ─────────── */
+function renderMapFocus(iso) {
+  const svg = document.querySelector("#map-wrap .worldmap");
+  const tip = document.getElementById("map-tip");
+  if (!svg) return;
+
+  // Clear all existing classes
+  svg.querySelectorAll("[class*=heat-],[class*=origin-],[class*=focus-]").forEach(el => {
+    el.classList.remove("heat-1","heat-2","heat-3","heat-4","heat-5","heat-6",
+      "origin-1","origin-2","origin-3","origin-target","pulse",
+      "focus-target","focus-origin");
+  });
+
+  if (!iso) {
+    svg.classList.remove("country-focus");
+    focusCountry = null;
+    if (tip) tip.style.display = "none";
+    render();
+    return;
+  }
+
+  svg.classList.add("country-focus");
+  focusCountry = iso;
+  const svName = ISO_COUNTRY[iso];
+  if (!svName) return;
+
+  // Find articles targeting this country, respecting active filters
+  const filtered = filt();
+  const targetArticles = filtered.filter(a => {
+    if (!a.country || a.country === "Globalt") return false;
+    return a.country.split(/,\s*/).some(c => c.trim() === svName);
+  });
+
+  // Collect origin countries from those articles
+  const originIsos = new Map();
+  targetArticles.forEach(a => {
+    if (!a.origin) return;
+    a.origin.split(/,\s*/).forEach(o => {
+      const oi = COUNTRY_ISO[o.trim()];
+      if (!oi || oi === iso) return;
+      if (!originIsos.has(oi)) originIsos.set(oi, { count: 0, actors: new Set() });
+      const e = originIsos.get(oi);
+      e.count++;
+      if (a.threat_actor) e.actors.add(a.threat_actor);
+    });
+  });
+
+  // Highlight target
+  const targetEl = document.getElementById(iso);
+  if (targetEl) targetEl.classList.add("focus-target");
+
+  // Highlight origins
+  originIsos.forEach((data, oi) => {
+    const el = document.getElementById(oi);
+    if (el) el.classList.add("focus-origin");
+  });
+
+  // Build info panel
+  const displayName = _tr(svName, "country");
+  let html = `<span class="map-tip-count">${targetArticles.length}</span>`;
+  html += `<strong>${esc(displayName)}</strong>`;
+  html += `<span class="map-tip-role map-tip-role-target">${_L==="en"?"target":"mål"}</span>`;
+
+  if (originIsos.size) {
+    html += `<div class="map-tip-section"><div class="map-tip-section-title">${_L==="en"?"attacker origins":"angriparnas ursprung"}</div>`;
+    [...originIsos.entries()].sort((a,b) => b[1].count - a[1].count).forEach(([oi, data]) => {
+      const oName = ISO_COUNTRY[oi] || oi;
+      const actorList = [...data.actors].slice(0,3).join(", ");
+      html += `<div style="margin-bottom:3px">`;
+      html += `<span class="map-tip-tag" style="background:rgba(220,38,38,.15);color:#f87171">${esc(_tr(oName,"country"))} ${data.count}</span>`;
+      if (actorList) html += ` <span style="font-size:11px;color:var(--fg3)">${esc(actorList)}</span>`;
+      html += `</div>`;
+    });
+    html += `</div>`;
+  }
+
+  // Top actors
+  const actorMap = new Map();
+  targetArticles.forEach(a => {
+    if (!a.threat_actor) return;
+    if (!actorMap.has(a.threat_actor)) actorMap.set(a.threat_actor, { count: 0, type: "" });
+    const e = actorMap.get(a.threat_actor);
+    e.count++;
+    if (a.actor_type && !e.type) e.type = a.actor_type;
+  });
+  if (actorMap.size) {
+    const top = [...actorMap.entries()].sort((a,b) => b[1].count - a[1].count).slice(0,5);
+    html += `<div class="map-tip-section"><div class="map-tip-section-title">${_L==="en"?"threat actors":"hotaktörer"}</div>`;
+    top.forEach(([name, info]) => {
+      html += `<span class="map-tip-tag map-tip-tag-actor">${esc(name)} ${info.count}</span> `;
+    });
+    html += `</div>`;
+  }
+
+  // Recent articles
+  const recent = [...targetArticles]
+    .sort((a,b) => { const da = parseUTC(a.published), db = parseUTC(b.published); return (db||0) - (da||0); })
+    .slice(0,5);
+  if (recent.length) {
+    html += `<div class="map-tip-articles"><div class="map-tip-section-title">${_L==="en"?"recent articles":"senaste artiklar"}</div>`;
+    recent.forEach(art => { html += buildArticleLink(art); });
+    html += `</div>`;
+  }
+
+  if (tip) {
+    tip.innerHTML = html;
+    tip.style.display = "block";
+    // Position fixed at top-right of map
+    const wrap = document.getElementById("map-wrap");
+    const rect = wrap.getBoundingClientRect();
+    tip.style.left = (rect.right - tip.offsetWidth - 16) + "px";
+    tip.style.top = (rect.top + 16) + "px";
+  }
+}
+
+function sevClass(s) { return s >= 7 ? "high" : s >= 4 ? "med" : "low"; }
+function buildArticleLink(art) {
+  return `<a class="map-tip-article" href="${esc(art.link)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">
+    <div class="map-tip-article-title">${esc(art.title)}</div>
+    <div class="map-tip-article-meta">
+      <span class="map-tip-sev map-tip-sev-${sevClass(art.severity||0)}">${(art.severity||0).toFixed(1)}</span>
+      ${art.threat_actor ? `<span>${esc(art.threat_actor)}</span>` : ""}
+      ${art.activity_type ? `<span>${esc(_tr(art.activity_type,"activity"))}</span>` : ""}
+    </div>
+  </a>`;
+}
+
+// Map tooltip (enhanced with clickable articles)
+(function() {
+  const tip = document.getElementById("map-tip");
+  const wrap = document.getElementById("map-wrap");
+  let hideTimer = null;
+  let currentISO = null;
+
+  function showTip(id) {
+    if (!id || !mapCountryData[id]) { hideTip(); return; }
+    currentISO = id;
+    const d = mapCountryData[id];
+    const threshold = Date.now() - MAP_ALERT_MINUTES * 60 * 1000;
+    const recentArts = [], olderArts = [];
+    (d.articles || []).forEach(art => {
+      const pub = parseUTC(art.published);
+      if (pub && pub.getTime() > threshold) recentArts.push(art);
+      else olderArts.push(art);
+    });
+
+    const roleLabels = { origin: _L==="en"?"attacker":"angripare", target: _L==="en"?"target":"mål", both: _L==="en"?"attacker & target":"angripare & mål" };
+    const roleClass = d.role === "origin" ? "map-tip-role-origin" : d.role === "both" ? "map-tip-role-both" : "map-tip-role-target";
+    let html = `<span class="map-tip-count">${d.count}</span><strong>${esc(_tr(d.name,"country"))}</strong>`;
+    html += `<span class="map-tip-role ${roleClass}">${roleLabels[d.role||"target"]}</span>`;
+    if (d.pulsing) html += `<span class="map-tip-live">LIVE</span>`;
+
+    if (recentArts.length) {
+      html += `<div class="map-tip-articles">`;
+      html += `<div class="map-tip-new-header"><span class="map-tip-new-dot"></span>${_L==="en"?"new last "+MAP_ALERT_MINUTES+" min":"nytt senaste "+MAP_ALERT_MINUTES+" min"}</div>`;
+      recentArts.forEach(art => { html += buildArticleLink(art); });
+      html += `</div>`;
+    }
+
+    if (d.topActors.length) {
+      html += `<div class="map-tip-section"><div class="map-tip-section-title">${_L==="en"?"threat actors":"hotaktörer"}</div>`;
+      d.topActors.forEach(a => {
+        html += `<div style="margin-bottom:3px"><span class="map-tip-tag map-tip-tag-actor">${esc(a.name)} ${a.count}</span>`;
+        if (a.type) html += ` <span style="opacity:.5;font-size:10px">${esc(_tr(a.type,"actor_type"))}</span>`;
+        if (a.sectors.length) html += `<br>` + a.sectors.map(s => `<span class="map-tip-tag map-tip-tag-sector">${esc(_tr(s,"sector"))}</span>`).join("");
+        html += `</div>`;
+      });
+      html += "</div>";
+    }
+
+    if (olderArts.length) {
+      html += `<div class="map-tip-articles">`;
+      html += `<div class="map-tip-section-title">${_L==="en"?"recent articles":"senaste artiklar"}</div>`;
+      olderArts.slice(0, 5).forEach(art => { html += buildArticleLink(art); });
+      html += `</div>`;
+    }
+
+    if (d.topSectors.length) {
+      html += `<div class="map-tip-section"><div class="map-tip-section-title">${_L==="en"?"targeted sectors":"drabbade sektorer"}</div>`;
+      html += d.topSectors.map(([s, cnt]) => `<span class="map-tip-tag map-tip-tag-sector">${esc(_tr(s,"sector"))} ${cnt}</span>`).join("");
+      html += "</div>";
+    }
+
+    tip.innerHTML = html;
+    tip.style.display = "block";
+  }
+
+  function hideTip() { tip.style.display = "none"; currentISO = null; }
+  function scheduleHide() { clearTimeout(hideTimer); hideTimer = setTimeout(hideTip, 250); }
+  function cancelHide() { clearTimeout(hideTimer); }
+
+  wrap.addEventListener("mouseover", e => {
+    if (focusCountry) return;
+    const path = e.target.closest("path, g");
+    if (!path) return;
+    const id = path.id || (path.closest("g") && path.closest("g").id);
+    cancelHide();
+    showTip(id);
+  });
+  wrap.addEventListener("mousemove", e => {
+    if (tip.style.display !== "block") return;
+    const tw = tip.offsetWidth, th = tip.offsetHeight;
+    let x = e.clientX + 14, y = e.clientY - 10;
+    if (x + tw > window.innerWidth - 10) x = e.clientX - tw - 14;
+    if (y + th > window.innerHeight - 10) y = window.innerHeight - th - 10;
+    if (y < 10) y = 10;
+    tip.style.left = x + "px";
+    tip.style.top = y + "px";
+  });
+  wrap.addEventListener("mouseout", e => {
+    const path = e.target.closest("path, g");
+    if (path) scheduleHide();
+  });
+
+  tip.addEventListener("mouseenter", cancelHide);
+  tip.addEventListener("mouseleave", scheduleHide);
+
+  wrap.addEventListener("click", e => {
+    if (e.target.closest(".map-tip")) return;
+    if (e.target.closest(".map-tip-article")) return;
+    if (e.target.closest(".map-zoom-ctrl")) return;
+    const path = e.target.closest("path");
+    if (!path) {
+      if (focusCountry) renderMapFocus(null);
+      return;
+    }
+    const id = path.id || (path.closest("g") && path.closest("g").id);
+    if (!id || !ISO_COUNTRY[id]) {
+      if (focusCountry) renderMapFocus(null);
+      return;
+    }
+    if (focusCountry === id) {
+      renderMapFocus(null);
+    } else {
+      renderMapFocus(id);
+    }
+  });
+})();
+
+function render(){
+  const v=filt();
+  const ds=v.map(a=>a.published).filter(Boolean).sort();
+  const range=ds.length?`${ds[0].slice(0,10)} – ${ds[ds.length-1].slice(0,10)}`:"";
+  const nf=Object.keys(filters).length;
+  document.getElementById("sub").textContent=`${A.length} ${S.articles_total} (${_allArticles.length} ${S.total_all}) · ${v.length} ${S.matches}`+(range?` · ${range}`:"")+(nf?` · ${Object.values(filters).reduce((s,v)=>s+v.size,0)} ${S.filter_w}`:"");
+  buildFilters();heroes(v);
+  if (currentView === "scatter") { renderScatter(v); }
+  else if (currentView === "map") {
+    if (focusCountry) renderMapFocus(focusCountry);
+    else renderMap(v);
+  }
+  else actorCards(v);
+  const dates=A.map(a=>(a.published||"").slice(0,10)).filter(Boolean);
+  const uniqDays=new Set(dates).size;
+  document.getElementById("data-note").textContent=`${S.data_from} ${uniqDays} ${uniqDays!==1?S.days_p:S.days} · ${A.length} ${S.articles_accumulated} · ${S.dataset_grows}`;
+}
+
+document.querySelectorAll(".tb[data-d]").forEach(b=>{
+  b.addEventListener("click",()=>{
+    document.querySelectorAll(".tb[data-d]").forEach(x=>x.classList.remove("on"));
+    b.classList.add("on");tD=+b.dataset.d;dF=null;dT=null;
+    document.getElementById("df").value="";document.getElementById("dt").value="";
+    render();
+  });
+});
+["df","dt"].forEach(id=>{
+  document.getElementById(id).addEventListener("change",function(){
+    document.querySelectorAll(".tb[data-d]").forEach(x=>x.classList.remove("on"));tD=0;
+    if(id==="df")dF=this.value?new Date(this.value):null;
+    else dT=this.value?new Date(this.value):null;
+    render();
+  });
+});
+
+document.querySelectorAll(".ms").forEach(b=>{
+  b.addEventListener("click",()=>{
+    document.querySelectorAll(".ms").forEach(x=>x.classList.remove("on"));
+    b.classList.add("on");minScore=+b.dataset.ms;render();
+  });
+});
+
+let filtersVisible=true;
+document.getElementById("filter-toggle").addEventListener("click",()=>{
+  filtersVisible=!filtersVisible;
+  document.getElementById("filters").style.display=filtersVisible?"":"none";
+  document.getElementById("filter-arrow").style.transform=filtersVisible?"":"rotate(-90deg)";
+});
+
+/* ── Auto-refresh: poll /api/articles every 5 min ── */
+function updateMapTimestamp() {
+  const el = document.getElementById("map-updated");
+  if (!el) return;
+  const now = new Date();
+  const hh = String(now.getHours()).padStart(2,"0");
+  const mm = String(now.getMinutes()).padStart(2,"0");
+  const ss = String(now.getSeconds()).padStart(2,"0");
+  const prefix = (typeof _L !== "undefined" && _L === "en") ? "updated" : "uppdaterad";
+  el.textContent = `${prefix} ${hh}:${mm}:${ss}`;
+}
+(function(){
+  const POLL_MS = 5 * 60 * 1000;
+  updateMapTimestamp();
+  async function poll() {
+    try {
+      const res = await fetch("/api/articles");
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data.generated && data.generated !== _lastGenerated && data.articles) {
+        _lastGenerated = data.generated;
+        _allArticles = data.articles;
+        A = _allArticles.filter(a => a.threat_actor);
+        render();
+      }
+      updateMapTimestamp();
+    } catch(e) { /* silent */ }
+  }
+  setInterval(poll, POLL_MS);
+})();
+
+</script>
+{{ template "i18n" }}
+<script>
+document.title = LANG === "en" ? "analysis" : "analys";
+if (LANG === "en") {
+  const h1 = document.querySelector("h1");
+  if (h1) h1.textContent = "analysis";
+  // Time buttons
+  document.querySelectorAll(".tb[data-d]").forEach(b => {
+    if (b.dataset.d === "0") b.textContent = "all";
+  });
+  // Sort buttons
+  document.querySelectorAll(".sb").forEach(b => {
+    const m = {relevance:"relevance",frequency:"frequency",name:"name",max:"max"};
+    if (m[b.dataset.sort]) b.textContent = m[b.dataset.sort];
+  });
+  // Sort/min labels
+  document.querySelectorAll(".toolbar span[style*='uppercase']").forEach(el => {
+    if (el.textContent.trim().toLowerCase() === "sortera") el.textContent = "sort";
+    if (el.textContent.trim().toLowerCase() === "min") el.textContent = "min";
+  });
+  // View buttons
+  document.querySelectorAll(".vb").forEach(b => {
+    const m = {actors:"top actors",scatter:"scatter",map:"map"};
+    if (m[b.dataset.view]) b.textContent = m[b.dataset.view];
+  });
+  // Filter toggle
+  const ft = document.getElementById("filter-toggle");
+  if (ft) ft.querySelector(".filter-label").lastChild.textContent = " filter";
+  // Map legend
+  document.querySelectorAll(".map-legend span").forEach(el => {
+    if (el.textContent === "få") el.textContent = "few";
+    if (el.textContent === "många") el.textContent = "many";
+  });
+}
+render();
+</script>
+{{ template "navjs" }}
+</body>
+</html>

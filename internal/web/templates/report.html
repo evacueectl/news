@@ -1,0 +1,794 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Rapport</title>
+<style>
+{{ template "basecss" }}
+
+.report-form {
+  margin: 16px 0; padding: 16px 0;
+  border-bottom: 1px solid var(--rule);
+}
+.report-form h2 { font-size: 15px; color: var(--fg); margin-bottom: 12px }
+.form-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 10px; align-items: end;
+}
+.form-group { display: flex; flex-direction: column; gap: 4px }
+.form-group label { font-size: 11px; color: var(--fg3) }
+.form-group input, .form-group select {
+  background: transparent; border: 1px solid var(--rule);
+  padding: 6px 8px; color: var(--fg); font-size: 13px;
+}
+.form-group input:focus, .form-group select:focus {
+  outline: none; border-color: var(--accent);
+}
+.depth-selector { display: flex; gap: 6px; margin-top: 4px }
+.depth-pill {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 5px 12px; cursor: pointer;
+  background: transparent; color: var(--fg3); font-size: 12px;
+  border: 1px solid var(--rule); transition: all .15s;
+}
+.depth-pill:has(input:checked) {
+  color: var(--fg); border-color: var(--fg3); font-weight: 700;
+}
+.depth-pill input { display: none }
+.form-actions { display: flex; align-items: end }
+.btn-generate {
+  background: var(--accent); color: #fff; border: none;
+  padding: 5px 16px; font-size: 13px; cursor: pointer; font-weight: 500;
+}
+.btn-generate:hover { opacity: .9 }
+
+/* Filter pills */
+.filter-pill-group { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px }
+.filter-pill {
+  display: inline-flex; align-items: center; gap: 3px;
+  font-family: inherit; font-size: 11px; font-weight: 500;
+  padding: 2px 8px; color: var(--fg3); background: transparent;
+  border: 1px solid var(--rule); cursor: pointer;
+  transition: all .1s;
+}
+.filter-pill:hover { color: var(--fg2); background: var(--bg3) }
+.filter-pill.active { border-color: var(--fg3); color: var(--fg); font-weight: 700 }
+
+/* Report layout */
+.report { margin-top: 12px }
+.report-header {
+  border-bottom: 2px solid var(--rule); padding-bottom: 12px; margin-bottom: 20px;
+}
+.report-header h1 { font-size: 22px; color: var(--fg); margin-bottom: 4px }
+.report-header .subtitle { color: var(--fg2); font-size: 13px }
+.report-header .generated { color: var(--fg3); font-size: 11px; margin-top: 4px }
+
+/* Uses shared .stat-grid/.stat-card from basecss for summary */
+.breakdown { margin-bottom: 20px }
+.breakdown h3 { font-size: 13px; color: var(--fg2); margin-bottom: 8px }
+
+.actor-section {
+  padding: 16px 0; margin-bottom: 0;
+  border-bottom: 1px solid var(--rule);
+}
+.actor-header { display: flex; align-items: baseline; gap: 10px; margin-bottom: 8px }
+.actor-header h2 { font-size: 17px; color: var(--fg); margin: 0 }
+.actor-type-badge { font-size: 11px; color: var(--fg3) }
+.actor-desc { color: var(--fg2); font-size: 12px; line-height: 1.6; margin-bottom: 10px }
+.actor-aliases { color: var(--fg3); font-size: 11px; margin-bottom: 8px }
+.actor-stats {
+  display: flex; gap: 16px; font-size: 12px; color: var(--fg3); margin-bottom: 10px;
+}
+.actor-tags { font-size: 11px; color: var(--fg2); margin-bottom: 12px }
+
+.ttp-section, .cve-section, .ioc-section { margin: 12px 0 }
+.ttp-section h3, .cve-section h3, .ioc-section h3 {
+  font-size: 12px; color: var(--fg3); margin-bottom: 6px;
+}
+.ttp-grid { display: flex; flex-wrap: wrap; gap: 4px }
+.ttp-tag {
+  font-size: 11px; font-family: 'SF Mono', 'Fira Code', monospace;
+  color: var(--fg2);
+}
+.ttp-tag .count { opacity: .6; margin-left: 2px }
+.cve-list { display: flex; flex-wrap: wrap; gap: 4px }
+.cve-tag {
+  font-size: 11px; font-family: 'SF Mono', 'Fira Code', monospace;
+  color: var(--accent); text-decoration: none;
+}
+
+.ioc-table { width: 100%; border-collapse: collapse; font-size: 12px }
+.ioc-table th {
+  text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--rule);
+  color: var(--fg3); font-size: 10px; font-weight: 600;
+}
+.ioc-table td { padding: 4px 8px; border-bottom: 1px solid var(--rule); color: var(--fg2) }
+.ioc-type-badge { font-size: 9px; color: var(--fg3); font-weight: 600 }
+.ioc-value { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 11px; word-break: break-all }
+
+.chain-section { margin: 12px 0 }
+.chain-section h3 { font-size: 12px; color: var(--fg3); margin-bottom: 6px }
+.chain-step {
+  display: flex; gap: 8px; padding: 4px 0; font-size: 12px;
+  border-left: 2px solid var(--accent); padding-left: 10px; margin-bottom: 4px;
+}
+.chain-phase { color: var(--accent); font-weight: 600; min-width: 100px }
+.chain-detail { color: var(--fg2) }
+.chain-ttp { color: var(--fg3); font-size: 11px; font-family: 'SF Mono', 'Fira Code', monospace }
+
+.articles-section { margin-top: 12px }
+.articles-section h3 { font-size: 12px; color: var(--fg3); margin-bottom: 6px }
+.report-article {
+  padding: 8px 0; border-bottom: 1px solid var(--rule);
+}
+.report-article:last-child { border-bottom: none }
+.article-title-row { display: flex; align-items: baseline; gap: 8px }
+.article-title-row a { color: var(--fg); text-decoration: none; font-size: 13px; font-weight: 500 }
+.article-title-row a:hover { color: var(--accent) }
+.article-meta { font-size: 11px; color: var(--fg3); margin-top: 2px }
+.article-summary { font-size: 12px; color: var(--fg2); margin-top: 4px; line-height: 1.5 }
+.article-detail { font-size: 12px; color: var(--fg2); margin-top: 6px; line-height: 1.6; padding-left: 12px; border-left: 2px solid var(--rule) }
+.article-impact { font-size: 12px; color: var(--warn); margin-top: 4px }
+
+.report-footer {
+  margin-top: 24px; padding-top: 12px; border-top: 1px solid var(--rule);
+  font-size: 11px; color: var(--fg3); text-align: center;
+}
+
+/* Executive layout */
+.exec-report { max-width: 820px; margin: 0 auto }
+.exec-header { border-bottom: 2px solid var(--rule); padding-bottom: 12px; margin-bottom: 16px }
+.exec-header-top { display: flex; justify-content: space-between; align-items: flex-start }
+.exec-header-top h1 { font-size: 20px; color: var(--fg); margin: 0 }
+.exec-header-top .subtitle { font-size: 13px; color: var(--fg3); margin-top: 2px }
+.exec-header-top .generated { font-size: 11px; color: var(--fg3); margin-top: 2px }
+.threat-badge {
+  font-size: 13px; font-weight: 800; padding: 8px 18px;
+  white-space: nowrap; border: 2px solid;
+}
+.threat-red { color: var(--danger); border-color: var(--danger) }
+.threat-amber { color: var(--warn); border-color: var(--warn) }
+.threat-yellow { color: var(--warn); border-color: var(--warn) }
+.threat-green { color: var(--ok); border-color: var(--ok) }
+.threat-summary { font-size: 13px; color: var(--fg2); margin-top: 10px; line-height: 1.6 }
+
+.exec-metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; margin: 16px 0; border: 1px solid var(--rule) }
+.exec-metric-card { padding: 14px; text-align: center }
+.metric-value { font-size: 26px; font-weight: 800; color: var(--fg) }
+.metric-delta { font-size: 11px; font-weight: 600; margin-top: 2px }
+.delta-bad { color: var(--danger) }
+.delta-good { color: var(--ok) }
+.delta-neutral { color: var(--fg3) }
+.metric-spark { width: 100%; height: 24px; margin: 6px 0 4px }
+.metric-spark polyline { fill: none; stroke: var(--accent); stroke-width: 1.5; vector-effect: non-scaling-stroke }
+.metric-label { font-size: 10px; color: var(--fg3) }
+
+.exec-section-title { font-size: 14px; font-weight: 700; color: var(--fg); margin: 20px 0 10px; font-family: Charter, 'Bitstream Charter', Georgia, serif }
+.exec-actor-card {
+  padding: 12px 0; margin-bottom: 0; border-bottom: 1px solid var(--rule);
+}
+.exec-actor-header { display: flex; align-items: center; gap: 8px; margin-bottom: 4px }
+.exec-actor-name { font-size: 14px; font-weight: 700; color: var(--fg) }
+.exec-trend-badge { font-size: 10px; font-weight: 600; color: var(--fg3) }
+.trend-ny { color: var(--accent) }
+.trend-ökande { color: var(--danger) }
+.trend-stabil { color: var(--ok) }
+.trend-minskande { color: var(--fg3) }
+.exec-actor-desc { font-size: 12px; color: var(--fg2); line-height: 1.5; margin-bottom: 4px }
+.exec-actor-pills { font-size: 11px; color: var(--fg2); margin-bottom: 4px }
+.exec-actor-pills span { margin-right: 4px }
+.exec-actor-stats { font-size: 11px; color: var(--fg3); display: flex; gap: 10px; align-items: center }
+.sev-badge { font-weight: 700 }
+
+.exec-trend-chart { min-height: 100px; margin: 8px 0 }
+.exec-assessments { margin: 20px 0 }
+.exec-assessments li {
+  padding: 10px 0 10px 14px; margin-bottom: 6px; font-size: 12px; line-height: 1.6;
+  color: var(--fg); border-left: 2px solid var(--accent); list-style: none;
+}
+.exec-assessments ul { padding: 0; margin: 0 }
+
+.exec-actor-blocks { display: grid; grid-template-columns: 1fr 1fr; gap: 0 24px }
+@media (max-width: 700px) { .exec-actor-blocks { grid-template-columns: 1fr } }
+.exec-block-header { display: flex; align-items: center; gap: 6px; margin-bottom: 4px }
+.exec-block-header .exec-section-title { margin: 20px 0 0 }
+.likelihood-badge { font-size: 10px; font-weight: 700; color: var(--accent); margin-left: auto }
+
+/* Print styles */
+@media print {
+  .nav, .report-form, .no-print { display: none !important }
+  body { padding: 0; max-width: none; background: #fff; color: #000 }
+  .report-header { border-bottom: 2px solid #000; padding-bottom: 8px }
+  .report-header h1 { color: #000 }
+  a { color: #000; text-decoration: underline }
+  .breakdown-bar { background: #333 }
+  .exec-report { max-width: none }
+  .exec-metric-card, .exec-actor-card { page-break-inside: avoid }
+  .threat-badge { color: #000; border-color: #000 }
+  .metric-spark polyline { stroke: #333 }
+  .exec-assessments li { border-left-color: #333; color: #000 }
+  @page { margin: 1.5cm }
+  h2 { page-break-after: avoid }
+  .actor-section { page-break-inside: avoid }
+}
+</style>
+</head>
+<body>
+{{ if .ShowForm }}
+<div class="nav">
+  <a href="/">flöde</a>
+  <a href="/stats">analys</a>
+  <a href="/actor">aktörer</a>
+  <span class="cur">rapport</span>
+  <a href="/brief">brief</a>
+  <a href="/feeds">källor</a>
+  <a href="/settings">inst.</a>
+  <button class="tdot" onclick="toggleTheme()" title="tema"></button>
+  <button class="lang-dot" onclick="toggleLang()"></button>
+</div>
+
+<form class="report-form" method="GET" action="/report">
+  <h2 id="form-title">Generera rapport</h2>
+  <div class="form-grid">
+    <div class="form-group">
+      <label id="lbl-actor">Aktör</label>
+      <input type="text" name="actor" value="{{ .Report.FilterActor }}" placeholder="t.ex. APT28">
+    </div>
+    <div class="form-group" style="grid-column:1/-1">
+      <label id="lbl-region">Region</label>
+      <input type="hidden" name="region" id="region-input" value="{{ .Report.FilterRegion }}">
+      <div class="filter-pill-group" id="region-pills"></div>
+    </div>
+    <div class="form-group" style="grid-column:1/-1">
+      <label id="lbl-sector">Sektor</label>
+      <input type="hidden" name="sector" id="sector-input" value="{{ range $i, $s := .Report.FilterSectors }}{{ if $i }},{{ end }}{{ $s }}{{ end }}">
+      <div class="filter-pill-group" id="sector-pills"></div>
+    </div>
+    <div class="form-group">
+      <label id="lbl-from">Från</label>
+      <input type="date" name="from" value="{{ .Report.DateFrom }}">
+    </div>
+    <div class="form-group">
+      <label id="lbl-to">Till</label>
+      <input type="date" name="to" value="{{ .Report.DateTo }}">
+    </div>
+    <div class="form-group">
+      <label id="lbl-min-score">Min poäng</label>
+      <input type="number" name="min_score" min="0" max="10" step="0.5" value="" placeholder="0">
+    </div>
+  </div>
+  <div style="margin-top: 12px; display: flex; align-items: end; gap: 16px">
+    <div>
+      <label style="font-size:11px;color:var(--fg3)" id="lbl-depth">Djup</label>
+      <div class="depth-selector">
+        <label class="depth-pill"><input type="radio" name="depth" value="executive"{{ if eq .Report.Depth "executive" }} checked{{ end }}> <span id="d-exec">Ledning</span></label>
+        <label class="depth-pill"><input type="radio" name="depth" value="tactical"{{ if eq .Report.Depth "tactical" }} checked{{ end }}> <span id="d-tact">Analytiker</span></label>
+        <label class="depth-pill"><input type="radio" name="depth" value="technical"{{ if eq .Report.Depth "technical" }} checked{{ end }}> <span id="d-tech">Threat Hunt</span></label>
+      </div>
+    </div>
+    <div class="form-actions">
+      <button type="submit" class="btn-generate" id="btn-gen">Generera</button>
+    </div>
+  </div>
+</form>
+{{ end }}
+
+{{ if eq .Report.TotalArticles 0 }}
+<div class="empty-state">
+  <h2 id="empty-title">Inga artiklar matchar filtret</h2>
+  <p id="empty-desc">Prova att ändra tidsperiod, region eller sektor.</p>
+</div>
+{{ else }}
+
+{{ if and (eq .Report.Depth "executive") .Report.Exec }}
+{{/* ===== EXECUTIVE LAYOUT ===== */}}
+<div class="report exec-report">
+  <header class="exec-header">
+    <div class="exec-header-top">
+      <div>
+        <h1>{{ .Report.Title }}</h1>
+        <div class="subtitle">{{ .Report.Subtitle }}</div>
+        <div class="generated" id="gen-label"><span id="rf-gen">Genererad</span>: {{ .Report.Generated }}</div>
+      </div>
+      <div class="threat-badge threat-{{ .Report.Exec.ThreatColor }}">
+        {{ .Report.Exec.ThreatLevel }}
+      </div>
+    </div>
+    <p class="threat-summary">{{ .Report.Exec.ThreatSummary }}</p>
+  </header>
+
+  <div class="exec-metrics">
+    {{ range $i, $m := .Report.Exec.Metrics }}
+    <div class="exec-metric-card">
+      <div class="metric-value">{{ $m.Value }}</div>
+      <div class="metric-delta {{ if eq $m.DeltaAbs "—" }}delta-neutral{{ else if and $m.UpIsBad (gt $m.Delta 0.0) }}delta-bad{{ else if and $m.UpIsBad (lt $m.Delta 0.0) }}delta-good{{ else if and (not $m.UpIsBad) (gt $m.Delta 0.0) }}delta-good{{ else if and (not $m.UpIsBad) (lt $m.Delta 0.0) }}delta-bad{{ else }}delta-neutral{{ end }}">
+        {{ if gt $m.Delta 0.0 }}&#9650;{{ else if lt $m.Delta 0.0 }}&#9660;{{ end }} {{ $m.DeltaAbs }}
+      </div>
+      <svg class="metric-spark" viewBox="0 0 70 24" preserveAspectRatio="none">
+        <polyline points="{{ sparkline $m.Sparkline }}" />
+      </svg>
+      <div class="metric-label">{{ $m.Label }}</div>
+    </div>
+    {{ end }}
+  </div>
+
+  <div class="exec-actor-blocks">
+    <div>
+      <div class="exec-block-header">
+        <h2 class="exec-section-title" id="exec-sev-title">Topp 5 allvarligaste</h2>
+        <span data-tip="Rankat efter allvarlighetsgrad, verifiering och aktualitet">&#9432;</span>
+      </div>
+      {{ range .Report.Exec.TopActorsSeverity }}
+      <div class="exec-actor-card">
+        <div class="exec-actor-header">
+          <span class="exec-actor-name">{{ .Name }}</span>
+          {{ if .Type }}<span class="actor-type-badge">{{ .Type }}</span>{{ end }}
+          <span class="exec-trend-badge trend-{{ .Trend }}">{{ .Trend }}</span>
+        </div>
+        {{ if .Description }}<div class="exec-actor-desc">{{ .Description }}</div>{{ end }}
+        <div class="exec-actor-pills">
+          {{ range .Activities }}<span class="exec-pill pill-act">{{ . }}</span>{{ end }}
+          {{ range .Regions }}<span class="exec-pill pill-reg">{{ . }}</span>{{ end }}
+          {{ range .Sectors }}<span class="exec-pill pill-sec">{{ . }}</span>{{ end }}
+        </div>
+        <div class="exec-actor-stats">
+          <span>{{ .ArticleCount }} <span class="as-articles">artiklar</span></span>
+          <span class="sev-badge">{{ printf "%.1f" .AvgSeverity }}</span>
+        </div>
+      </div>
+      {{ end }}
+    </div>
+    <div>
+      <div class="exec-block-header">
+        <h2 class="exec-section-title" id="exec-likely-title">Topp 5 sannolikaste</h2>
+        <span data-tip="Rankat efter frekvens, persistens, aktualitet och regional relevans">&#9432;</span>
+      </div>
+      {{ range .Report.Exec.TopActorsLikelihood }}
+      <div class="exec-actor-card">
+        <div class="exec-actor-header">
+          <span class="exec-actor-name">{{ .Name }}</span>
+          {{ if .Type }}<span class="actor-type-badge">{{ .Type }}</span>{{ end }}
+          <span class="exec-trend-badge trend-{{ .Trend }}">{{ .Trend }}</span>
+          <span class="likelihood-badge">{{ printf "%.0f" .LikelihoodScore }}%</span>
+        </div>
+        {{ if .Description }}<div class="exec-actor-desc">{{ .Description }}</div>{{ end }}
+        <div class="exec-actor-pills">
+          {{ range .Activities }}<span class="exec-pill pill-act">{{ . }}</span>{{ end }}
+          {{ range .Regions }}<span class="exec-pill pill-reg">{{ . }}</span>{{ end }}
+          {{ range .Sectors }}<span class="exec-pill pill-sec">{{ . }}</span>{{ end }}
+        </div>
+        <div class="exec-actor-stats">
+          <span>{{ .ArticleCount }} <span class="as-articles">artiklar</span></span>
+          <span class="sev-badge">{{ printf "%.1f" .AvgSeverity }}</span>
+          {{ if .LastSeen }}<span><span class="as-lastseen">senast</span> {{ .LastSeen }}</span>{{ end }}
+          {{ if gt .ActiveDays 0 }}<span>{{ .ActiveDays }} <span class="as-days">aktiva dagar</span></span>{{ end }}
+        </div>
+      </div>
+      {{ end }}
+    </div>
+  </div>
+
+  <h2 class="exec-section-title" id="exec-trend-title">Aktivitetstrender</h2>
+  <div class="exec-trend-chart" id="exec-trend-chart"></div>
+
+  <h2 class="exec-section-title" id="exec-assess-title">Bedömning</h2>
+  <div class="exec-assessments">
+    <ul>
+      {{ range .Report.Exec.Assessments }}
+      <li>{{ . }}</li>
+      {{ end }}
+    </ul>
+  </div>
+
+  <div class="report-footer">
+    <span id="rf-gen2">Genererad</span> {{ .Report.Generated }}
+    {{ if .Report.FilterRegion }} &middot; Region: {{ .Report.FilterRegion }}{{ end }}
+    {{ if .Report.FilterSectors }} &middot; Sektor: {{ range $i, $s := .Report.FilterSectors }}{{ if $i }}, {{ end }}{{ $s }}{{ end }}{{ end }}
+  </div>
+</div>
+
+{{ else }}
+{{/* ===== TACTICAL / TECHNICAL LAYOUT ===== */}}
+<div class="report">
+  <header class="report-header">
+    <h1>{{ .Report.Title }}</h1>
+    <div class="subtitle">{{ .Report.Subtitle }}</div>
+    <div class="generated" id="gen-label">Genererad: {{ .Report.Generated }}</div>
+    <div style="margin-top:4px;font-size:11px;color:var(--fg3)">
+      <span class="depth-pill" style="pointer-events:none">{{ .Report.DepthLabel }}</span>
+    </div>
+  </header>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <span class="stat-val">{{ .Report.TotalArticles }}</span>
+      <span class="stat-lbl" id="sc-articles">Artiklar</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-val">{{ len .Report.Actors }}</span>
+      <span class="stat-lbl" id="sc-actors">Aktörer</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-val">{{ .Report.VerifiedCount }}</span>
+      <span class="stat-lbl" id="sc-verified">Verifierade</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-val">{{ printf "%.1f" .Report.AvgScore }}</span>
+      <span class="stat-lbl" id="sc-avg">Snittpoäng</span>
+    </div>
+  </div>
+
+  {{ if gt (len .Report.ActivityBreakdown) 0 }}
+  <div class="breakdown">
+    <h3 id="bd-activity">Aktivitetstyper</h3>
+    <div class="breakdown-bars" id="activity-bars"></div>
+  </div>
+  {{ end }}
+
+  {{ if gt (len .Report.RegionBreakdown) 0 }}
+  <div class="breakdown">
+    <h3 id="bd-region">Regioner</h3>
+    <div class="breakdown-bars" id="region-bars"></div>
+  </div>
+  {{ end }}
+
+  {{ if gt (len .Report.SectorBreakdown) 0 }}
+  <div class="breakdown">
+    <h3 id="bd-sector">Sektorer</h3>
+    <div class="breakdown-bars" id="sector-bars"></div>
+  </div>
+  {{ end }}
+
+  {{ range .Report.Actors }}
+  <section class="actor-section">
+    <div class="actor-header">
+      <h2>{{ .Name }}</h2>
+      {{ if .Type }}<span class="actor-type-badge">{{ .Type }}</span>{{ end }}
+    </div>
+    {{ if .Aliases }}<div class="actor-aliases">Alias: {{ .Aliases }}</div>{{ end }}
+    {{ if .Description }}<div class="actor-desc">{{ .Description }}</div>{{ end }}
+    <div class="actor-stats">
+      <span>{{ .ArticleCount }} <span class="as-articles">artiklar</span></span>
+      <span><span class="as-avg">snitt</span>: {{ printf "%.1f" .AvgScore }}</span>
+    </div>
+    {{ if or .Activities .Regions .Sectors }}
+    <div class="actor-tags meta-line">
+      {{ range $i, $a := .Activities }}{{ if $i }} &middot; {{ end }}{{ $a }}{{ end }}
+      {{ if and .Activities .Regions }} &middot; {{ end }}
+      {{ range $i, $r := .Regions }}{{ if $i }} &middot; {{ end }}{{ $r }}{{ end }}
+      {{ if and (or .Activities .Regions) .Sectors }} &middot; {{ end }}
+      {{ range $i, $s := .Sectors }}{{ if $i }} &middot; {{ end }}{{ $s }}{{ end }}
+    </div>
+    {{ end }}
+
+    {{ if ne $.Report.Depth "executive" }}
+      {{ if .TTPs }}
+      <div class="ttp-section">
+        <h3>TTP:er</h3>
+        <div class="ttp-grid">
+          {{ range .TTPs }}
+          <span class="ttp-tag">{{ .Name }}{{ if gt .Count 1 }} <span class="count">({{ .Count }})</span>{{ end }}</span>
+          {{ end }}
+        </div>
+      </div>
+      {{ end }}
+
+      {{ if .CVEs }}
+      <div class="cve-section">
+        <h3>CVE:er</h3>
+        <div class="cve-list">
+          {{ range .CVEs }}<span class="cve-tag">{{ . }}</span>{{ end }}
+        </div>
+      </div>
+      {{ end }}
+    {{ end }}
+
+    {{ if eq $.Report.Depth "technical" }}
+      {{ if .IOCs }}
+      <div class="ioc-section">
+        <h3>IOC:er ({{ len .IOCs }})</h3>
+        <table class="ioc-table">
+          <tr><th>Typ</th><th>Värde</th><th>Konfidens</th><th>Senast sedd</th></tr>
+          {{ range .IOCs }}
+          <tr>
+            <td><span class="ioc-type-badge">{{ .Type }}</span></td>
+            <td class="ioc-value">{{ .Value }}</td>
+            <td>{{ .Confidence }}%</td>
+            <td>{{ .LastSeen }}</td>
+          </tr>
+          {{ end }}
+        </table>
+      </div>
+      {{ end }}
+    {{ end }}
+
+    <div class="articles-section">
+      <h3 class="as-heading">Artiklar</h3>
+      {{ range .Articles }}
+      <div class="report-article">
+        <div class="article-title-row">
+          <a href="{{ .Link }}" target="_blank" rel="noopener">{{ .Title }}</a>
+          <span class="score {{ if ge .Score 7.0 }}score-high{{ else if ge .Score 4.0 }}score-med{{ else }}score-low{{ end }}">{{ printf "%.1f" .Score }}</span>
+          {{ if .Verified }}<span style="color:var(--ok)">&#10003;</span>{{ end }}
+        </div>
+        <div class="article-meta">
+          {{ .Source }} &middot; {{ .Published }}
+          {{ if .Country }} &middot; {{ .Country }}{{ end }}
+          {{ if .Sector }} &middot; {{ .Sector }}{{ end }}
+        </div>
+        <div class="article-summary">{{ .Summary }}</div>
+        {{ if and (ne $.Report.Depth "executive") .Detail }}
+        <div class="article-detail">{{ .Detail }}</div>
+        {{ end }}
+        {{ if .Impact }}
+        <div class="article-impact">{{ .Impact }}</div>
+        {{ end }}
+        {{ if and (eq $.Report.Depth "technical") .AttackChain }}
+        <div class="chain-section">
+          <h3>Attack Chain</h3>
+          {{ range .AttackChain }}
+          <div class="chain-step">
+            <span class="chain-phase">{{ .Phase }}</span>
+            {{ if .TTP }}<span class="chain-ttp">{{ .TTP }}</span>{{ end }}
+            <span class="chain-detail">{{ .Detail }}</span>
+          </div>
+          {{ end }}
+        </div>
+        {{ end }}
+        {{ if and (eq $.Report.Depth "technical") .IOCs }}
+        <div class="ioc-section" style="margin-left:12px">
+          <table class="ioc-table">
+            {{ range .IOCs }}
+            <tr>
+              <td><span class="ioc-type-badge">{{ .Type }}</span></td>
+              <td class="ioc-value">{{ .Value }}</td>
+              <td>{{ .Confidence }}%</td>
+            </tr>
+            {{ end }}
+          </table>
+        </div>
+        {{ end }}
+      </div>
+      {{ end }}
+    </div>
+  </section>
+  {{ end }}
+
+  {{ if .Report.UngroupedArticles }}
+  <section class="actor-section">
+    <div class="actor-header">
+      <h2 id="ungrouped-title">Övriga artiklar (utan aktörsattribuering)</h2>
+    </div>
+    <div class="actor-stats">
+      <span>{{ len .Report.UngroupedArticles }} <span class="as-articles">artiklar</span></span>
+    </div>
+    <div class="articles-section">
+      {{ range .Report.UngroupedArticles }}
+      <div class="report-article">
+        <div class="article-title-row">
+          <a href="{{ .Link }}" target="_blank" rel="noopener">{{ .Title }}</a>
+          <span class="score {{ if ge .Score 7.0 }}score-high{{ else if ge .Score 4.0 }}score-med{{ else }}score-low{{ end }}">{{ printf "%.1f" .Score }}</span>
+          {{ if .Verified }}<span style="color:var(--ok)">&#10003;</span>{{ end }}
+        </div>
+        <div class="article-meta">
+          {{ .Source }} &middot; {{ .Published }}
+          {{ if .Country }} &middot; {{ .Country }}{{ end }}
+          {{ if .Sector }} &middot; {{ .Sector }}{{ end }}
+          {{ if .ActivityType }} &middot; {{ .ActivityType }}{{ end }}
+        </div>
+        <div class="article-summary">{{ .Summary }}</div>
+        {{ if and (ne $.Report.Depth "executive") .Detail }}
+        <div class="article-detail">{{ .Detail }}</div>
+        {{ end }}
+        {{ if .Impact }}
+        <div class="article-impact">{{ .Impact }}</div>
+        {{ end }}
+      </div>
+      {{ end }}
+    </div>
+  </section>
+  {{ end }}
+
+  <div class="report-footer">
+    <span id="rf-gen">Genererad</span> {{ .Report.Generated }}
+    {{ if .Report.FilterActor }} &middot; <span id="rf-actor">Aktör</span>: {{ .Report.FilterActor }}{{ end }}
+    {{ if .Report.FilterRegion }} &middot; <span id="rf-region">Region</span>: {{ .Report.FilterRegion }}{{ end }}
+    {{ if .Report.FilterSectors }} &middot; <span id="rf-sector">Sektor</span>: {{ range $i, $s := .Report.FilterSectors }}{{ if $i }}, {{ end }}{{ $s }}{{ end }}{{ end }}
+  </div>
+</div>
+{{ end }}{{/* end executive/tactical conditional */}}
+{{ end }}{{/* end articles > 0 */}}
+
+{{ template "i18n" }}
+{{ template "navjs" }}
+
+<script>
+function toggleTheme() {
+  const r = document.documentElement;
+  const cur = r.getAttribute("data-theme");
+  const next = cur === "light" ? "dark" : cur === "dark" ? "" : "light";
+  if (next) { r.setAttribute("data-theme", next); localStorage.setItem("theme", next); }
+  else { r.removeAttribute("data-theme"); localStorage.removeItem("theme"); }
+}
+const saved = localStorage.getItem("theme");
+if (saved) document.documentElement.setAttribute("data-theme", saved);
+
+// Filter pill setup
+(function() {
+  const regions = ["Norden","Europa","Östeuropa","Nordamerika","Sydamerika","Asien","Mellanöstern","Afrika","Oceanien","Globalt"];
+  const sectors = ["Energi","Transporter","Bankverksamhet","Hälso- och sjukvård","Digital infrastruktur","Offentlig förvaltning","Tillverkning","Livsmedel","Forskning","IKT-tjänster","Rymden"];
+
+  const regionInput = document.getElementById('region-input');
+  const sectorInput = document.getElementById('sector-input');
+  const regionBox = document.getElementById('region-pills');
+  const sectorBox = document.getElementById('sector-pills');
+  if (!regionBox || !sectorBox) return;
+
+  const activeRegion = regionInput ? regionInput.value : '';
+  const sectorVal = sectorInput ? sectorInput.value : '';
+  const activeSectors = new Set(sectorVal ? sectorVal.split(',').map(s => s.trim()).filter(Boolean) : []);
+
+  // Region pills (single select)
+  regions.forEach(r => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'filter-pill' + (activeRegion === r ? ' active' : '');
+    btn.dataset.val = r;
+    btn.textContent = LANG === 'en' ? (_TR && _TR.region[r] || r) : r;
+    btn.addEventListener('click', () => {
+      regionBox.querySelectorAll('.filter-pill').forEach(b => b.classList.remove('active'));
+      if (regionInput.value === r) { regionInput.value = ''; }
+      else { regionInput.value = r; btn.classList.add('active'); }
+    });
+    regionBox.appendChild(btn);
+  });
+
+  // Sector pills (multi select)
+  sectors.forEach(s => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'filter-pill' + (activeSectors.has(s) ? ' active' : '');
+    btn.dataset.val = s;
+    btn.textContent = LANG === 'en' ? (_TR && _TR.sector[s] || s) : s;
+    btn.addEventListener('click', () => {
+      if (activeSectors.has(s)) { activeSectors.delete(s); btn.classList.remove('active'); }
+      else { activeSectors.add(s); btn.classList.add('active'); }
+      sectorInput.value = [...activeSectors].join(',');
+    });
+    sectorBox.appendChild(btn);
+  });
+})();
+</script>
+
+<script>
+// Render breakdown bars
+function renderBars(containerId, data) {
+  const el = document.getElementById(containerId);
+  if (!el || !data) return;
+  const entries = Object.entries(data).sort((a,b) => b[1] - a[1]);
+  const max = entries.length ? entries[0][1] : 1;
+  el.innerHTML = entries.map(([label, count]) =>
+    `<div class="breakdown-row">
+      <span class="breakdown-label">${esc(label)}</span>
+      <div class="breakdown-bar" style="width:${Math.max(2, (count/max)*200)}px"></div>
+      <span class="breakdown-count">${count}</span>
+    </div>`
+  ).join('');
+}
+
+function esc(s) {
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+{{ if and (gt .Report.TotalArticles 0) (not .Report.Exec) }}
+renderBars('activity-bars', {{ json .Report.ActivityBreakdown }});
+renderBars('region-bars', {{ json .Report.RegionBreakdown }});
+renderBars('sector-bars', {{ json .Report.SectorBreakdown }});
+{{ end }}
+
+{{ if .Report.Exec }}
+// Executive stacked bar chart
+(function() {
+  const labels = {{ json .Report.Exec.WeekLabels }};
+  const series = {{ json .Report.Exec.ActivityTrends }};
+  const el = document.getElementById('exec-trend-chart');
+  if (!el || !labels.length || !series.length) return;
+
+  const palette = ['#06b6d4','#8b5cf6','#f59e0b','#ec4899','#10b981','#6366f1','#ef4444','#14b8a6'];
+  const nWeeks = labels.length;
+
+  // compute max stack height
+  const totals = new Array(nWeeks).fill(0);
+  series.forEach(s => s.Weeks.forEach((v,i) => totals[i] += v));
+  const maxY = Math.max(...totals, 1);
+
+  const barW = Math.min(40, Math.floor(500 / nWeeks) - 6);
+  const chartH = 120;
+  const gapX = barW + 6;
+  const svgW = gapX * nWeeks + 20;
+
+  let svg = `<svg width="100%" viewBox="0 0 ${svgW} ${chartH + 30}" style="overflow:visible">`;
+
+  // bars
+  for (let w = 0; w < nWeeks; w++) {
+    let y = chartH;
+    const x = 10 + w * gapX;
+    series.forEach((s, si) => {
+      const val = s.Weeks[w] || 0;
+      if (val === 0) return;
+      const h = (val / maxY) * chartH;
+      y -= h;
+      svg += `<rect x="${x}" y="${y}" width="${barW}" height="${h}" rx="2" fill="${palette[si % palette.length]}" opacity="0.85"><title>${esc(s.Type)}: ${val}</title></rect>`;
+    });
+    // week label
+    svg += `<text x="${x + barW/2}" y="${chartH + 16}" text-anchor="middle" fill="var(--fg3)" style="font-size:10px">${esc(labels[w])}</text>`;
+  }
+  svg += `</svg>`;
+
+  // legend
+  let legend = '<div style="display:flex;flex-wrap:wrap;gap:8px 14px;margin-top:6px">';
+  series.forEach((s, i) => {
+    legend += `<span style="font-size:11px;color:var(--fg2);display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:${palette[i % palette.length]};display:inline-block"></span>${esc(s.Type)}</span>`;
+  });
+  legend += '</div>';
+
+  el.innerHTML = svg + legend;
+})();
+{{ end }}
+
+// i18n for report
+if (LANG === "en") {
+  const m = {
+    "form-title": "Generate report",
+    "lbl-actor": "Actor", "lbl-region": "Region", "lbl-sector": "Sector",
+    "lbl-from": "From", "lbl-to": "To", "lbl-min-score": "Min score", "lbl-depth": "Depth",
+    "d-exec": "Executive", "d-tact": "Analyst", "d-tech": "Threat Hunt",
+    "btn-gen": "Generate",
+    "empty-title": "No articles match the filter",
+    "empty-desc": "Try changing the time period, region, or sector.",
+    "gen-label": "Generated: {{ .Report.Generated }}",
+    "sc-articles": "Articles", "sc-actors": "Actors",
+    "sc-verified": "Verified", "sc-avg": "Avg score",
+    "bd-activity": "Activity types", "bd-region": "Regions", "bd-sector": "Sectors",
+    "rf-gen": "Generated", "rf-gen2": "Generated",
+    "rf-actor": "Actor", "rf-region": "Region", "rf-sector": "Sector",
+    "exec-sev-title": "Top 5 Most Severe",
+    "exec-likely-title": "Top 5 Most Likely",
+    "exec-trend-title": "Activity Trends",
+    "exec-assess-title": "Assessment",
+  };
+  Object.entries(m).forEach(([id, txt]) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = txt;
+  });
+  document.querySelectorAll('[data-tip]').forEach(el => {
+    const tips = {
+      "Rankat efter allvarlighetsgrad, verifiering och aktualitet": "Ranked by severity, verification, and recency",
+      "Rankat efter frekvens, persistens, aktualitet och regional relevans": "Ranked by frequency, persistence, recency, and regional relevance",
+    };
+    const t = tips[el.getAttribute("data-tip")];
+    if (t) el.setAttribute("data-tip", t);
+  });
+  document.querySelectorAll('.as-articles').forEach(e => e.textContent = 'articles');
+  document.querySelectorAll('.as-avg').forEach(e => e.textContent = 'avg');
+  document.querySelectorAll('.as-heading').forEach(e => e.textContent = 'Articles');
+  document.querySelectorAll('.as-lastseen').forEach(e => e.textContent = 'last seen');
+  document.querySelectorAll('.as-days').forEach(e => e.textContent = 'active days');
+}
+
+// Nav order update for report page
+(function(){
+  const nav = document.querySelector(".nav");
+  if (!nav) return;
+  const links = nav.querySelectorAll("a, .cur");
+  const order = ["feed","analysis","actors","report","sources","settings"];
+  links.forEach((el, i) => {
+    if (order[i] && T.nav[order[i]]) el.textContent = _t(T.nav[order[i]]);
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>inställningar</title>
+<style>
+{{ template "basecss" }}
+body { max-width: 640px }
+h1 { margin-bottom: 20px }
+.settings-card { padding: 20px 0 }
+.setting-row {
+  display: flex; align-items: center; gap: 14px;
+  padding: 8px 0;
+}
+.setting-label {
+  font-size: 13px; font-weight: 600; color: var(--fg3);
+  min-width: 110px;
+}
+.setting-input {
+  font-family: inherit; font-size: 13px; font-weight: 400;
+  padding: 6px 10px;
+  background: transparent; color: var(--fg);
+  border: 1px solid var(--rule);
+  outline: none; width: 120px;
+  transition: border-color .15s;
+}
+.setting-input:focus { border-color: var(--accent) }
+.setting-select {
+  font-family: inherit; font-size: 13px; font-weight: 400;
+  padding: 6px 10px;
+  background: transparent; color: var(--fg);
+  border: 1px solid var(--rule);
+  outline: none;
+  transition: border-color .15s;
+}
+.setting-select:focus { border-color: var(--accent) }
+.setting-check {
+  width: 16px; height: 16px;
+  accent-color: var(--accent);
+}
+.save-btn {
+  font-family: inherit; font-size: 12px; font-weight: 600;
+  padding: 7px 18px;
+  color: #fff; background: var(--accent);
+  border: none; cursor: pointer;
+  margin-top: 14px; transition: opacity .15s;
+}
+.save-btn:hover { opacity: .85 }
+.status {
+  font-size: 12px; font-weight: 400; color: var(--fg3);
+  margin-top: 10px; opacity: 0; transition: opacity .3s;
+}
+.status.show { opacity: 1 }
+.status-card {
+  padding: 12px 0; margin-bottom: 16px;
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  font-size: 12px; color: var(--fg2);
+  border-bottom: 1px solid var(--rule);
+}
+.status-dot {
+  width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+}
+.status-dot.ok { background: var(--ok) }
+.status-dot.err { background: var(--danger) }
+.status-dot.none { background: var(--fg3) }
+.status-item { white-space: nowrap }
+.status-label { color: var(--fg3); font-weight: 600 }
+.status-val { color: var(--fg2); font-weight: 400 }
+@media (max-width: 640px) {
+  .settings-card { padding: 14px 0 }
+  .setting-label { min-width: 80px }
+}
+</style>
+</head>
+<body>
+<div class="nav">
+  <a href="/">flöde</a>
+  <a href="/stats">analys</a>
+  <a href="/actor">aktörer</a>
+  <a href="/report">rapport</a>
+  <a href="/brief">brief</a>
+  <a href="/feeds">källor</a>
+  <span class="cur">inst.</span>
+  <button class="tdot" onclick="toggleTheme()" title="tema"></button>
+  <button class="lang-dot" onclick="toggleLang()"></button>
+</div>
+<h1>inställningar</h1>
+
+<div class="status-card" id="sync-status"></div>
+
+<div class="settings-card">
+  <div class="setting-row">
+    <span class="setting-label">min. poäng</span>
+    <input class="setting-input" id="s-min-score" type="number" min="1" max="10">
+  </div>
+  <div class="setting-row">
+    <span class="setting-label">max artiklar</span>
+    <input class="setting-input" id="s-top-n" type="number" min="1" max="200">
+  </div>
+  <div class="setting-row">
+    <span class="setting-label">modell</span>
+    <select class="setting-select" id="s-model">
+      <option value="claude-haiku-4-5-20251001">Haiku 4.5</option>
+      <option value="claude-sonnet-4-20250514">Sonnet 4</option>
+    </select>
+  </div>
+  <div class="setting-row">
+    <span class="setting-label">hämtfönster</span>
+    <select class="setting-select" id="s-fetch-window">
+      <option value="7">7 dagar</option>
+      <option value="14">14 dagar</option>
+      <option value="30">30 dagar</option>
+      <option value="60">60 dagar</option>
+      <option value="90">90 dagar</option>
+      <option value="180">180 dagar</option>
+      <option value="365">365 dagar</option>
+    </select>
+  </div>
+  <div class="setting-row">
+    <span class="setting-label">autosynk</span>
+    <input class="setting-check" id="s-auto-sync" type="checkbox">
+  </div>
+  <div class="setting-row">
+    <span class="setting-label">synkintervall</span>
+    <select class="setting-select" id="s-sync-interval">
+      <option value="10">10 minuter</option>
+      <option value="60">1 timme</option>
+      <option value="120">2 timmar</option>
+      <option value="360">6 timmar</option>
+      <option value="720">12 timmar</option>
+      <option value="1440">24 timmar</option>
+    </select>
+  </div>
+  <div class="setting-row">
+    <span class="setting-label">aktörsnamn</span>
+    <select class="setting-select" id="s-actor-naming">
+      <option value="mitre">MITRE (APT28)</option>
+      <option value="microsoft">Microsoft (Forest Blizzard)</option>
+      <option value="crowdstrike">CrowdStrike (Fancy Bear)</option>
+    </select>
+  </div>
+  <div class="setting-row">
+    <span class="setting-label">kartpuls</span>
+    <select class="setting-select" id="s-map-alert">
+      <option value="15">15 minuter</option>
+      <option value="30">30 minuter</option>
+      <option value="60">1 timme</option>
+      <option value="120">2 timmar</option>
+      <option value="240">4 timmar</option>
+      <option value="480">8 timmar</option>
+      <option value="1440">24 timmar</option>
+    </select>
+  </div>
+  <button class="save-btn" onclick="saveSettings()">spara</button>
+</div>
+<div class="status" id="status"></div>
+
+<script>
+function toggleTheme() {
+  const r = document.documentElement;
+  const cur = r.getAttribute("data-theme");
+  const next = cur === "light" ? "dark" : cur === "dark" ? "" : "light";
+  if (next) { r.setAttribute("data-theme", next); localStorage.setItem("theme", next); }
+  else { r.removeAttribute("data-theme"); localStorage.removeItem("theme"); }
+}
+const saved = localStorage.getItem("theme");
+if (saved) document.documentElement.setAttribute("data-theme", saved);
+
+const syncStatus = {{json .SyncStatus}};
+const articleCount = {{json .ArticleCount}};
+(function(){
+  const el = document.getElementById("sync-status");
+  const en = localStorage.getItem("lang") === "en";
+  if (!syncStatus || !syncStatus.last_run) {
+    el.innerHTML = `<span class="status-dot none"></span><span class="status-item"><span class="status-label">${en?"sync:":"synk:"}</span> <span class="status-val">${en?"never run":"aldrig körd"}</span></span>`;
+    return;
+  }
+  const ago = (iso) => {
+    const d = (Date.now() - new Date(iso).getTime()) / 1000;
+    if (d < 60) return en?"just now":"just nu";
+    if (d < 3600) return Math.floor(d/60) + (en?" min ago":" min sedan");
+    if (d < 86400) return Math.floor(d/3600) + (en?" hrs ago":" tim sedan");
+    return Math.floor(d/86400) + (en?" d ago":" d sedan");
+  };
+  const feeds = syncStatus.feeds || [];
+  const okCount = feeds.filter(f => !f.error).length;
+  const errCount = feeds.filter(f => f.error).length;
+  const hasErr = errCount > 0;
+  el.innerHTML = `<span class="status-dot ${hasErr ? "err" : "ok"}"></span>` +
+    `<span class="status-item"><span class="status-label">${en?"sync:":"synk:"}</span> <span class="status-val">${ago(syncStatus.last_run)}</span></span>` +
+    `<span class="status-item"><span class="status-label">${en?"result:":"resultat:"}</span> <span class="status-val">${syncStatus.fetched} / ${syncStatus.new_articles} ${en?"new":"nya"} / ${syncStatus.scored} ${en?"scored":"poängsatta"}</span></span>` +
+    `<span class="status-item"><span class="status-label">${en?"time:":"tid:"}</span> <span class="status-val">${syncStatus.duration || "—"}</span></span>` +
+    `<span class="status-item"><span class="status-label">cache:</span> <span class="status-val">${articleCount} ${en?"articles":"artiklar"}</span></span>` +
+    `<span class="status-item"><span class="status-label">${en?"feeds:":"källor:"}</span> <span class="status-val">${okCount} ok${hasErr ? ` · ${errCount} ${en?"errors":"fel"}` : ""}</span></span>`;
+})();
+
+const settings = {{json .Settings}};
+document.getElementById("s-min-score").value = settings.min_score;
+document.getElementById("s-top-n").value = settings.top_n;
+document.getElementById("s-model").value = settings.model;
+document.getElementById("s-fetch-window").value = settings.fetch_window;
+document.getElementById("s-auto-sync").checked = settings.auto_sync;
+document.getElementById("s-sync-interval").value = settings.sync_interval;
+document.getElementById("s-actor-naming").value = settings.actor_naming || "mitre";
+document.getElementById("s-map-alert").value = settings.map_alert_minutes || 60;
+
+function showStatus(msg) {
+  const el = document.getElementById("status");
+  el.textContent = msg;
+  el.classList.add("show");
+  setTimeout(() => el.classList.remove("show"), 2500);
+}
+
+function saveSettings() {
+  const data = {
+    min_score: +document.getElementById("s-min-score").value,
+    top_n: +document.getElementById("s-top-n").value,
+    model: document.getElementById("s-model").value,
+    fetch_window: +document.getElementById("s-fetch-window").value,
+    auto_sync: document.getElementById("s-auto-sync").checked,
+    sync_interval: +document.getElementById("s-sync-interval").value,
+    actor_naming: document.getElementById("s-actor-naming").value,
+    map_alert_minutes: +document.getElementById("s-map-alert").value,
+  };
+  fetch("/api/settings", {
+    method: "PUT",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify(data)
+  }).then(r => {
+    if (r.ok) showStatus(localStorage.getItem("lang")==="en"?"settings saved":"inställningar sparade");
+    else showStatus(localStorage.getItem("lang")==="en"?"save error":"fel vid sparning");
+  });
+}
+</script>
+{{ template "i18n" }}
+<script>
+T.page = {
+  title: ["inställningar","settings"],
+  min_score: ["min. poäng","min score"], max_articles: ["max artiklar","max articles"],
+  model: ["modell","model"], fetch_window: ["hämtfönster","fetch window"],
+  auto_sync: ["autosynk","auto sync"], sync_interval: ["synkintervall","sync interval"],
+  actor_naming: ["aktörsnamn","actor naming"],
+  map_alert: ["kartpuls","map pulse"],
+  save: ["spara","save"], saved: ["inställningar sparade","settings saved"], save_err: ["fel vid sparning","save error"],
+  days: ["dagar","days"], hours: ["timmar","hours"], hour: ["timme","hour"], minutes: ["minuter","minutes"],
+  status_title: ["status","status"], last_sync: ["senaste synk","last sync"],
+  fetched: ["hämtade","fetched"], new_articles: ["nya","new"], scored: ["poängsatta","scored"],
+  duration: ["tid","duration"], total_articles: ["artiklar i cache","articles in cache"],
+  feeds_ok: ["källor ok","feeds ok"], feeds_err: ["fel","errors"], never: ["aldrig","never"],
+};
+document.title = _t(T.page.title);
+if (LANG === "en") {
+  document.querySelectorAll(".setting-label").forEach(el => {
+    const m = {
+      "min. poäng": T.page.min_score, "max artiklar": T.page.max_articles,
+      "modell": T.page.model, "hämtfönster": T.page.fetch_window,
+      "autosynk": T.page.auto_sync, "synkintervall": T.page.sync_interval,
+      "aktörsnamn": T.page.actor_naming,
+      "kartpuls": T.page.map_alert,
+    };
+    const t = m[el.textContent.trim()];
+    if (t) el.textContent = _t(t);
+  });
+  const saveBtn = document.querySelector(".save-btn");
+  if (saveBtn) saveBtn.textContent = _t(T.page.save);
+  const h1 = document.querySelector("h1");
+  if (h1) h1.textContent = _t(T.page.title);
+  // Translate select options
+  const fw = document.getElementById("s-fetch-window");
+  if (fw) fw.querySelectorAll("option").forEach(o => { o.textContent = o.textContent.replace("dagar","days"); });
+  const si = document.getElementById("s-sync-interval");
+  if (si) si.querySelectorAll("option").forEach(o => {
+    o.textContent = o.textContent.replace("minuter","minutes").replace("timmar","hours").replace("timme","hour");
+  });
+  const ma = document.getElementById("s-map-alert");
+  if (ma) ma.querySelectorAll("option").forEach(o => {
+    o.textContent = o.textContent.replace("minuter","minutes").replace("timmar","hours").replace("timme","hour");
+  });
+}
+</script>
+{{ template "navjs" }}
+</body>
+</html>

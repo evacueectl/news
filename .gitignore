@@ -1,0 +1,13 @@
+# Binaries
+news
+newsdigest
+/tmp/
+
+# Config with secrets
+config.yaml
+
+# IDE
+.vscode/.history
+
+# OS
+.DS_Store

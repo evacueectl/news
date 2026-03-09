@@ -1,0 +1,295 @@
+{{ define "basecss" }}
+/* ═══ Design tokens ═══ */
+* { margin: 0; box-sizing: border-box }
+*, *::before, *::after { border-radius: 0 }
+html { font-size: 13px }
+:root {
+  --bg: #111111; --bg2: #1a1a1a; --bg3: #232323;
+  --fg: #e8e6e3; --fg2: #a09c97; --fg3: #6b6763;
+  --rule: #2a2725;
+  --accent: #4a90d9;
+  --danger: #d97459; --warn: #c9a84c; --ok: #6b9a6b;
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --bg: #faf9f7; --bg2: #ffffff; --bg3: #f0eeeb;
+    --fg: #1a1815; --fg2: #5c5650; --fg3: #8f8880;
+    --rule: #e0ddd8;
+    --accent: #2b5ea7;
+    --danger: #b84c30; --warn: #9a7d2e; --ok: #4a7a4a;
+    color-scheme: light;
+  }
+}
+:root[data-theme="light"] {
+  --bg: #faf9f7; --bg2: #ffffff; --bg3: #f0eeeb;
+  --fg: #1a1815; --fg2: #5c5650; --fg3: #8f8880;
+  --rule: #e0ddd8;
+  --accent: #2b5ea7;
+  --danger: #b84c30; --warn: #9a7d2e; --ok: #4a7a4a;
+  color-scheme: light;
+}
+
+/* ═══ Base ═══ */
+body {
+  background: var(--bg); color: var(--fg2);
+  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  font-size: 13px; line-height: 1.5;
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+  padding: 44px 24px 60px;
+  max-width: 960px; margin: 0 auto;
+}
+a { color: var(--accent) }
+
+/* ═══ Typography ═══ */
+h1, h2, h3, .serif { font-family: Charter, 'Bitstream Charter', Georgia, serif; color: var(--fg) }
+h1 { font-size: 24px; font-weight: 700; line-height: 1.3 }
+h2 { font-size: 18px; font-weight: 700; line-height: 1.3 }
+h3 { font-size: 15px; font-weight: 700; line-height: 1.3 }
+.sub { font-size: 12px; font-weight: 400; color: var(--fg3); margin-top: 2px }
+
+/* ═══ Nav ═══ */
+.nav {
+  position: fixed; top: 0; left: 0; right: 0;
+  display: flex; align-items: center;
+  padding: 0 24px; height: 36px;
+  background: var(--bg); border-bottom: 1px solid var(--rule);
+  z-index: 10;
+  transition: transform .3s ease, opacity .3s ease;
+}
+.nav.hidden { transform: translateY(-100%); opacity: 0; pointer-events: none }
+.nav a, .nav .cur {
+  display: inline-block; padding: 8px 10px;
+  font-size: 12px; font-weight: 400;
+  text-decoration: none;
+  transition: color .1s;
+}
+.nav a { color: var(--fg3) }
+.nav a:hover { color: var(--fg) }
+.nav .cur { color: var(--fg); font-weight: 700 }
+.tdot {
+  all: unset; cursor: pointer; width: 24px; height: 24px;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 11px; color: var(--fg3); transition: color .1s;
+  margin-left: 4px;
+}
+.tdot::after { content: "\25D0" }
+.tdot:hover { color: var(--fg) }
+.lang-dot {
+  all: unset; cursor: pointer; height: 24px;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 700; color: var(--fg3); transition: color .1s;
+  margin-left: 2px; padding: 0 4px;
+}
+.lang-dot:hover { color: var(--fg) }
+
+/* ═══ Shared components ═══ */
+.card {
+  border: 1px solid var(--rule);
+  background: transparent;
+}
+[data-tip] { position: relative; cursor: help }
+[data-tip]::after {
+  content: attr(data-tip); position: absolute; bottom: calc(100% + 6px); left: 50%;
+  transform: translateX(-50%); white-space: normal; width: max-content; max-width: 300px;
+  padding: 6px 10px; font-size: 11px; font-weight: 400; line-height: 1.4;
+  background: var(--bg2); color: var(--fg2); border: 1px solid var(--rule);
+  z-index: 50; pointer-events: none;
+  opacity: 0; transition: opacity .15s;
+}
+[data-tip]:hover::after { opacity: 1 }
+
+/* Toolbar button */
+.tb {
+  background: transparent; color: var(--fg3);
+  border: 1px solid var(--rule); padding: 4px 10px;
+  border-radius: 2px;
+  font-size: 12px; font-weight: 500;
+  cursor: pointer; font-family: inherit;
+  text-decoration: none; display: inline-block;
+  transition: all .1s;
+}
+.tb:hover { color: var(--fg2); background: var(--bg3) }
+.tb.on { color: var(--fg); background: var(--bg3); border-color: var(--fg3) }
+
+/* Score (text, not pill) */
+.score { font-weight: 700 }
+.score-high { color: var(--danger) }
+.score-med { color: var(--warn) }
+.score-low { color: var(--fg3) }
+
+/* Filter button (monochrome) */
+.filter-btn {
+  display: inline-flex; align-items: center; gap: 3px;
+  font-family: inherit; font-size: 11px; font-weight: 500;
+  padding: 2px 8px; border-radius: 2px;
+  border: 1px solid transparent; cursor: pointer;
+  color: var(--fg3); background: transparent;
+  transition: all .1s;
+}
+.filter-btn:hover { color: var(--fg2); background: var(--bg3) }
+.filter-btn.active { border-color: var(--fg3); color: var(--fg); font-weight: 700 }
+.filter-btn .n { font-size: 9px; opacity: .5 }
+
+/* Breakdown bars */
+.breakdown-bars { display: flex; flex-direction: column; gap: 4px }
+.breakdown-row { display: flex; align-items: center; gap: 8px; font-size: 12px }
+.breakdown-label { width: 140px; color: var(--fg2); text-align: right; flex-shrink: 0 }
+.breakdown-bar { height: 14px; background: var(--accent); min-width: 2px }
+.breakdown-count { color: var(--fg3); font-size: 11px }
+
+/* Stat grid */
+.stat-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  gap: 1px; margin-bottom: 20px;
+  border: 1px solid var(--rule);
+}
+.stat-card { text-align: center; padding: 12px 8px }
+.stat-val { font-size: 22px; font-weight: 700; color: var(--fg); display: block }
+.stat-lbl { font-size: 11px; color: var(--fg3); margin-top: 2px }
+
+/* Metadata line (text with middot separators) */
+.meta-line { font-size: 11px; color: var(--fg3) }
+.meta-sep::before { content: " \00b7 " }
+
+/* Empty state */
+.empty-state { text-align: center; padding: 48px 0; color: var(--fg3) }
+.empty-state h2 { font-size: 18px; color: var(--fg2); margin-bottom: 8px }
+
+/* Section title */
+.section-title {
+  font-size: 15px; color: var(--fg); margin: 24px 0 10px; font-weight: 700;
+  font-family: Charter, 'Bitstream Charter', Georgia, serif;
+}
+
+/* ═══ Animations ═══ */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-4px) }
+  to { opacity: 1; transform: translateY(0) }
+}
+
+/* ═══ Print ═══ */
+@media print {
+  .nav { display: none !important }
+  body { background: #fff; color: #222; padding: 0 }
+  .card { border-color: #ccc }
+  .breakdown-bar { background: #333 }
+  @page { margin: 1.5cm }
+}
+
+/* ═══ Mobile ═══ */
+@media (max-width: 640px) {
+  body { padding: 40px 12px 40px }
+  .nav a, .nav .cur { padding: 6px 6px; font-size: 11px }
+  .stat-grid { grid-template-columns: repeat(2, 1fr) }
+  .breakdown-label { width: 100px }
+}
+{{ end }}
+
+{{ define "i18n" }}
+<script>
+const LANG = localStorage.getItem("lang") || "sv";
+const _t = (arr) => arr[LANG === "en" ? 1 : 0];
+const T = {
+  nav: { feed: ["flöde","feed"], analysis: ["analys","analysis"], actors: ["aktörer","actors"],
+         report: ["rapport","report"], brief: ["brief","brief"], sources: ["källor","sources"], settings: ["inst.","settings"] },
+  theme: ["tema","theme"],
+  lang_label: ["EN","SV"],
+};
+/* --- data value translation maps (sv → en) --- */
+const _TR = LANG === "en" ? {
+  activity: {"Ransomware":"Ransomware","Phishing":"Phishing","Malware":"Malware",
+    "Sårbarhet":"Vulnerability","Dataläcka":"Data breach","DDoS":"DDoS",
+    "Supply chain":"Supply chain","Intrång":"Intrusion","Spionage":"Espionage","Defacement":"Defacement"},
+  sector: {"Energi":"Energy","Transporter":"Transport","Bankverksamhet":"Banking",
+    "Finansmarknadsinfrastruktur":"Financial market infrastructure",
+    "Hälso- och sjukvård":"Healthcare","Dricksvatten":"Drinking water",
+    "Avloppsvatten":"Wastewater","Digital infrastruktur":"Digital infrastructure",
+    "IKT-tjänster":"ICT services","Offentlig förvaltning":"Public administration",
+    "Rymden":"Space","Post och bud":"Postal services","Avfallshantering":"Waste management",
+    "Kemikalier":"Chemicals","Livsmedel":"Food","Tillverkning":"Manufacturing",
+    "Digitala leverantörer":"Digital providers","Forskning":"Research"},
+  region: {"Norden":"Nordics","Europa":"Europe","Östeuropa":"Eastern Europe",
+    "Nordamerika":"North America","Sydamerika":"South America","Asien":"Asia",
+    "Mellanöstern":"Middle East","Afrika":"Africa","Oceanien":"Oceania","Globalt":"Global"},
+  actor_type: {"Statlig":"State-sponsored","Kriminell":"Criminal",
+    "Hacktivist":"Hacktivist","Forskare":"Researcher","Okänd":"Unknown"},
+  country: {"Sverige":"Sweden","Danmark":"Denmark","Norge":"Norway","Finland":"Finland",
+    "Island":"Iceland","Frankrike":"France","Tyskland":"Germany","Italien":"Italy",
+    "Spanien":"Spain","Nederländerna":"Netherlands","Belgien":"Belgium",
+    "Schweiz":"Switzerland","Österrike":"Austria","Portugal":"Portugal",
+    "Irland":"Ireland","Storbritannien":"United Kingdom","Polen":"Poland",
+    "Tjeckien":"Czech Republic","Rumänien":"Romania","Ungern":"Hungary",
+    "Grekland":"Greece","Bulgarien":"Bulgaria","Kroatien":"Croatia",
+    "Slovakien":"Slovakia","Estland":"Estonia","Lettland":"Latvia",
+    "Litauen":"Lithuania","Slovenien":"Slovenia","Luxemburg":"Luxembourg",
+    "Serbien":"Serbia","Albanien":"Albania","Nordmakedonien":"North Macedonia",
+    "Montenegro":"Montenegro","Bosnien":"Bosnia","Ukraina":"Ukraine",
+    "Ryssland":"Russia","Belarus":"Belarus","Moldavien":"Moldova",
+    "Georgien":"Georgia","USA":"USA","Kanada":"Canada","Mexiko":"Mexico",
+    "Brasilien":"Brazil","Argentina":"Argentina","Colombia":"Colombia",
+    "Chile":"Chile","Peru":"Peru","Venezuela":"Venezuela","Ecuador":"Ecuador",
+    "Kina":"China","Japan":"Japan","Sydkorea":"South Korea","Nordkorea":"North Korea",
+    "Indien":"India","Pakistan":"Pakistan","Bangladesh":"Bangladesh",
+    "Sri Lanka":"Sri Lanka","Indonesien":"Indonesia","Malaysia":"Malaysia",
+    "Thailand":"Thailand","Vietnam":"Vietnam","Filippinerna":"Philippines",
+    "Singapore":"Singapore","Myanmar":"Myanmar","Kambodja":"Cambodia",
+    "Laos":"Laos","Taiwan":"Taiwan","Afghanistan":"Afghanistan",
+    "Uzbekistan":"Uzbekistan","Kazakstan":"Kazakhstan",
+    "Australien":"Australia","Nya Zeeland":"New Zealand",
+    "Iran":"Iran","Irak":"Iraq","Saudiarabien":"Saudi Arabia",
+    "Förenade Arabemiraten":"UAE","Israel":"Israel","Turkiet":"Turkey",
+    "Qatar":"Qatar","Kuwait":"Kuwait","Bahrain":"Bahrain","Oman":"Oman",
+    "Jordanien":"Jordan","Libanon":"Lebanon","Armenien":"Armenia",
+    "Azerbajdzjan":"Azerbaijan","Egypten":"Egypt","Sydafrika":"South Africa",
+    "Nigeria":"Nigeria","Kenya":"Kenya","Etiopien":"Ethiopia",
+    "Marocko":"Morocco","Algeriet":"Algeria","Tunisien":"Tunisia",
+    "Ghana":"Ghana","Tanzania":"Tanzania","Uganda":"Uganda",
+    "Mozambique":"Mozambique","Angola":"Angola","Globalt":"Global"},
+} : null;
+function _tr(val, category) {
+  if (!_TR || !val) return val;
+  const m = _TR[category];
+  if (!m) return val;
+  return m[val] || val;
+}
+function _trMulti(val, category) {
+  if (!_TR || !val) return val;
+  const m = _TR[category];
+  if (!m) return val;
+  return val.split(/,\s*/).map(v => m[v] || v).join(", ");
+}
+function toggleLang() {
+  localStorage.setItem("lang", LANG === "sv" ? "en" : "sv");
+  location.reload();
+}
+(function(){
+  document.documentElement.lang = LANG === "en" ? "en" : "sv";
+  const nav = document.querySelector(".nav");
+  if (!nav) return;
+  const langBtn = nav.querySelector(".lang-dot");
+  if (langBtn) langBtn.textContent = _t(T.lang_label);
+  const links = nav.querySelectorAll("a, .cur");
+  const order = ["feed","analysis","actors","report","brief","sources","settings"];
+  links.forEach((el, i) => { if (order[i] && T.nav[order[i]]) el.textContent = _t(T.nav[order[i]]); });
+})();
+</script>
+{{ end }}
+
+{{ define "navjs" }}
+<script>
+(function(){
+  const nav = document.querySelector(".nav");
+  if (!nav) return;
+  let lastY = window.scrollY;
+  window.addEventListener("scroll", () => {
+    const y = window.scrollY;
+    if (y < 60) { nav.classList.remove("hidden"); }
+    else if (y > lastY + 10) { nav.classList.add("hidden"); }
+    else if (y < lastY - 10) { nav.classList.remove("hidden"); }
+    lastY = y;
+  }, { passive: true });
+})();
+</script>
+{{ end }}

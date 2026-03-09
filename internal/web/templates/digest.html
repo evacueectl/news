@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>flöde</title>
+<style>
+{{ template "basecss" }}
+
+/* Sync */
+.sdot {
+  all: unset; cursor: pointer; width: 8px; height: 8px; border-radius: 50%;
+  background: transparent; border: 1.5px solid var(--fg3); transition: all .2s;
+}
+.sdot:hover { border-color: var(--ok) }
+.sdot.syncing {
+  background: var(--ok); border-color: var(--ok);
+  animation: pulse 1.2s ease-in-out infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1) }
+  50% { opacity: .3; transform: scale(1.4) }
+}
+.sync-toast {
+  position: fixed; top: 10px; left: 50%; transform: translateX(-50%);
+  font-size: 12px; font-weight: 500; padding: 6px 16px;
+  z-index: 100;
+  background: var(--bg2); border: 1px solid var(--rule); color: var(--fg2);
+  opacity: 0; transition: opacity .3s; pointer-events: none;
+}
+.sync-toast.show { opacity: 1 }
+.sync-toast.success { color: var(--ok) }
+.sync-toast.error { color: var(--danger) }
+
+/* Layout */
+.meta { font-size: 12px; color: var(--fg3); margin-top: 4px; margin-bottom: 16px }
+.toolbar { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; margin-bottom: 12px }
+.tb-sep { color: var(--rule); font-size: 11px; margin: 0 2px; user-select: none }
+input[type="date"] {
+  font-family: inherit; font-size: 12px; padding: 3px 8px; border-radius: 2px;
+  color: var(--fg2); background: transparent; border: 1px solid var(--rule); cursor: pointer;
+}
+input[type="date"]:focus { border-color: var(--accent); outline: none }
+input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(.5); cursor: pointer }
+
+/* Filters */
+.filter-groups { margin-bottom: 10px }
+.filter-group { display: flex; align-items: baseline; gap: 5px; margin-bottom: 5px; flex-wrap: wrap }
+.filter-label { font-size: 11px; font-weight: 600; color: var(--fg3); min-width: 70px; flex-shrink: 0 }
+.more-btn { color: var(--fg3); font-style: italic; font-size: 11px; background: none; border: none; cursor: pointer }
+.more-btn:hover { color: var(--fg2) }
+
+/* Presets */
+.presets { display: flex; gap: 4px; align-items: center; margin-bottom: 14px; flex-wrap: wrap }
+.preset-btn {
+  font-family: inherit; font-size: 11px; font-weight: 500;
+  padding: 3px 10px; color: var(--fg3); background: transparent;
+  border: 1px solid var(--rule); cursor: pointer;
+}
+.preset-btn:hover { color: var(--fg2) }
+.preset-del { font-size: 10px; margin-left: 4px; opacity: .4 }
+.preset-del:hover { opacity: 1; color: var(--danger) }
+.preset-save { font-family: inherit; font-size: 11px; font-weight: 500; color: var(--fg3); background: none; border: none; cursor: pointer }
+.preset-save:hover { color: var(--fg2) }
+.filter-count { font-size: 12px; color: var(--fg3); margin-bottom: 10px }
+
+/* Articles */
+.article { padding: 12px 0; cursor: pointer; border-bottom: 1px solid var(--rule) }
+.article:first-child { border-top: 1px solid var(--rule) }
+.article:hover { background: var(--bg3) }
+.article-header { display: flex; align-items: baseline; gap: 10px }
+.article-title { font-size: 14px; font-weight: 600; color: var(--fg); flex: 1; line-height: 1.4 }
+.article-info { font-size: 12px; color: var(--fg3); margin-top: 4px }
+.summary { font-size: 13px; color: var(--fg2); margin-top: 6px; line-height: 1.6 }
+.detail {
+  overflow: hidden; max-height: 0; opacity: 0;
+  transition: max-height .3s ease, opacity .2s ease, margin .2s ease;
+}
+.detail.open { max-height: 500px; opacity: 1; margin-top: 10px; animation: fadeIn .12s ease-out }
+.detail-meta { display: grid; grid-template-columns: auto 1fr; gap: 3px 14px; margin-bottom: 10px; font-size: 12px }
+.detail-key { font-weight: 600; color: var(--fg3) }
+.detail-val { color: var(--fg2) }
+.detail-aliases { font-size: 11px; color: var(--fg3); font-style: italic }
+.detail-text {
+  font-size: 13px; color: var(--fg2); line-height: 1.6;
+  padding: 10px 14px; border-left: 2px solid var(--accent);
+}
+.detail-link { display: inline-block; margin-top: 8px; font-size: 12px; color: var(--accent); text-decoration: none; font-weight: 500 }
+.detail-link:hover { text-decoration: underline }
+.cve-link { font-family: ui-monospace, monospace; font-size: 11px; color: var(--accent); text-decoration: none }
+.cve-link:hover { text-decoration: underline }
+.ttp-code { font-family: ui-monospace, monospace; font-size: 11px; color: var(--fg3) }
+.empty { text-align: center; color: var(--fg3); font-size: 14px; padding: 48px 0 }
+@media (max-width: 640px) {
+  .filter-label { min-width: 50px }
+}
+@media print { .toolbar, .filter-groups, .presets, .filter-count { display: none !important } }
+</style>
+</head>
+<body>
+<div class="sync-toast" id="sync-toast"></div>
+<div class="nav">
+  <span class="cur">flöde</span>
+  <a href="/stats">analys</a>
+  <a href="/actor">aktörer</a>
+  <a href="/report">rapport</a>
+  <a href="/brief">brief</a>
+  <a href="/feeds">källor</a>
+  <a href="/settings">inst.</a>
+  <button class="tdot" onclick="toggleTheme()" title="tema"></button>
+  <button class="lang-dot" onclick="toggleLang()"></button>
+</div>
+<div style="display:flex;align-items:center;gap:8px;padding:14px 0">
+  <h1>flöde</h1>
+  <button class="sdot" id="sync-dot" onclick="doSync()" title="synka nu"></button>
+</div>
+<div class="meta" id="meta"></div>
+
+<div class="toolbar">
+  <button class="tb on" data-d="0">allt</button>
+  <button class="tb" data-d="1">24h</button>
+  <button class="tb" data-d="7">7d</button>
+  <button class="tb" data-d="30">30d</button>
+  <button class="tb" data-d="90">90d</button>
+  <span class="tb-sep">|</span>
+  <input type="date" id="df" title="från">
+  <span class="tb-sep">&ndash;</span>
+  <input type="date" id="dt" title="till">
+</div>
+
+<div class="filter-groups" id="filter-groups"></div>
+<div class="presets" id="presets"></div>
+<div class="toolbar" style="margin-bottom:6px">
+  <span style="font-size:11px;font-weight:600;color:var(--fg3);margin-right:4px">sortera</span>
+  <button class="tb sb on" data-sort="date">senaste</button>
+  <button class="tb sb" data-sort="score">poäng</button>
+  <button class="tb sb" data-sort="source">källa</button>
+  <span class="tb-sep">|</span>
+  <span style="font-size:11px;font-weight:600;color:var(--fg3)">min</span>
+  <input type="range" id="min-score" min="0" max="10" step="0.5" value="0" style="width:90px;accent-color:var(--accent);cursor:pointer">
+  <span id="min-score-val" style="font-size:11px;font-weight:600;color:var(--fg3);min-width:24px">0</span>
+</div>
+<div class="filter-count" id="filter-count"></div>
+
+<div id="articles"></div>
+
+<script>
+function toggleTheme() {
+  const r = document.documentElement;
+  const cur = r.getAttribute("data-theme");
+  const next = cur === "light" ? "dark" : cur === "dark" ? "" : "light";
+  if (next) { r.setAttribute("data-theme", next); localStorage.setItem("theme", next); }
+  else { r.removeAttribute("data-theme"); localStorage.removeItem("theme"); }
+}
+const saved = localStorage.getItem("theme");
+if (saved) document.documentElement.setAttribute("data-theme", saved);
+
+let A = {{json .Articles}};
+const generated = new Date({{json .Generated}}).toLocaleString('sv-SE',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});
+const defaultTags = {{json .DefaultTags}};
+let activeTags = {
+  regions: new Set(defaultTags.regions || []),
+  sectors: new Set(defaultTags.sectors || []),
+  activities: new Set(defaultTags.activities || []),
+};
+
+function parseUTC(s) { if (!s) return null; const d = new Date(s.endsWith('Z') ? s : s + 'Z'); return isNaN(d) ? null : d; }
+
+function computeRelevance(a) {
+  let rel = 0;
+  if (activeTags.regions.size > 0) {
+    if (activeTags.regions.has(a.region)) rel += 3;
+    for (const c of (a.country||"").split(/,\s*/))
+      if (activeTags.regions.has(c)) { rel += 3; break; }
+  }
+  if (activeTags.sectors.size > 0 && a.sector && activeTags.sectors.has(a.sector)) rel += 2;
+  if (activeTags.activities.size > 0 && a.activity_type && activeTags.activities.has(a.activity_type)) rel += 2;
+  const _pd = parseUTC(a.published); const hrs = _pd ? (Date.now() - _pd.getTime()) / 3.6e6 : 999;
+  if (hrs < 6) rel += 3; else if (hrs < 24) rel += 2; else if (hrs < 72) rel += 1;
+  rel += (a.novelty || 1) * 0.5;
+  return Math.min(10, rel);
+}
+
+function computeThreatLevel(a) {
+  const v = a.verified ? 1 : 0;
+  return Math.min(10, Math.max(1, (a.severity||0)*0.5 + v*2 + (a.scope||1)*0.4 + (a.novelty||1)*0.5));
+}
+
+let tD = 0, dF = null, dT = null, sortMode = "date", minScore = +(localStorage.getItem("minScore") || 0);
+const filters = {};
+const expandedGroups = new Set();
+const esc = s => { const d = document.createElement("span"); d.textContent = s; return d.innerHTML.replace(/"/g,"&quot;").replace(/'/g,"&#39;"); };
+const _L=localStorage.getItem("lang")==="en"?"en":"sv";
+const S=_L==="en"?{
+  empty:"no articles match your criteria",read_original:"read original \u2192",
+  of:"of",articles:"articles",total:"total",filter_w:"filter",
+  threat_actor:"threat actor",actor_type:"actor type",origin:"origin",attack_type:"attack type",
+  affected_country:"affected country",sector:"sector",impact:"impact",ttps:"TTPs",
+  save_filter:"+ save filter",filter_prompt:"Filter name:",
+  more_suffix:"more",
+  sort_label:"SORT",sort_date:"latest",sort_score:"score",sort_source:"source",
+  syncing:"syncing feeds\u2026",sync_done:"done",sync_new:"new articles scored",
+  sync_none:"no new articles",sync_err:"sync error",
+  filter_labels:{activity:"activity",sector:"sector",country:"country",region:"region",type:"actor type",actor:"actor"},
+}:{
+  empty:"inga artiklar matchar dina kriterier",read_original:"l\u00e4s originalet \u2192",
+  of:"av",articles:"artiklar",total:"totalt",filter_w:"filter",
+  threat_actor:"hotakt\u00f6r",actor_type:"akt\u00f6rstyp",origin:"ursprung",attack_type:"angreppstyp",
+  affected_country:"drabbat land",sector:"sektor",impact:"p\u00e5verkan",ttps:"TTPs",
+  save_filter:"+ spara filter",filter_prompt:"Namn p\u00e5 filtret:",
+  more_suffix:"till",
+  sort_label:"SORTERA",sort_date:"senaste",sort_score:"po\u00e4ng",sort_source:"k\u00e4lla",
+  syncing:"synkar feeds\u2026",sync_done:"klart",sync_new:"nya artiklar po\u00e4ngsatta",
+  sync_none:"inga nya artiklar",sync_err:"synkfel",
+  filter_labels:{activity:"aktivitet",sector:"sektor",country:"land",region:"region",type:"akt\u00f6rstyp",actor:"akt\u00f6r"},
+};
+
+const NIS2_SECTOR = _L==="en" ? {
+  "Energy": "NIS2 Annex I \u2014 Electricity, oil, gas, district heating, hydrogen",
+  "Transport": "NIS2 Annex I \u2014 Air, rail, water, road transport",
+  "Banking": "NIS2 Annex I \u2014 Credit institutions per CRD",
+  "Financial market infrastructure": "NIS2 Annex I \u2014 Trading venues, central counterparties",
+  "Healthcare": "NIS2 Annex I \u2014 Healthcare providers, laboratories, pharmaceuticals, medical devices",
+  "Drinking water": "NIS2 Annex I \u2014 Drinking water suppliers and distributors",
+  "Wastewater": "NIS2 Annex I \u2014 Wastewater treatment plants and networks",
+  "Digital infrastructure": "NIS2 Annex I \u2014 IXP, DNS, TLD, cloud, datacenters, CDN, trust services",
+  "ICT services": "NIS2 Annex I \u2014 Managed services and managed security services (MSP/MSSP)",
+  "Public administration": "NIS2 Annex I \u2014 Central government entities",
+  "Space": "NIS2 Annex I \u2014 Operators of ground-based space infrastructure",
+  "Postal services": "NIS2 Annex II \u2014 Postal and courier service providers",
+  "Waste management": "NIS2 Annex II \u2014 Collection, transport and treatment of waste",
+  "Chemicals": "NIS2 Annex II \u2014 Manufacture, production and distribution of chemicals",
+  "Food": "NIS2 Annex II \u2014 Production, processing and distribution of food",
+  "Manufacturing": "NIS2 Annex II \u2014 Medical devices, electronics, vehicles, machinery",
+  "Digital providers": "NIS2 Annex II \u2014 Marketplaces, search engines, social platforms",
+  "Research": "NIS2 Annex II \u2014 Research organisations",
+} : {
+  "Energi": "NIS2 Bilaga I \u2014 El, olja, gas, fj\u00e4rrv\u00e4rme, v\u00e4tgas",
+  "Transporter": "NIS2 Bilaga I \u2014 Luft, j\u00e4rnv\u00e4g, vatten, v\u00e4gtransport",
+  "Bankverksamhet": "NIS2 Bilaga I \u2014 Kreditinstitut enligt CRD",
+  "Finansmarknadsinfrastruktur": "NIS2 Bilaga I \u2014 Handelsplatser, centrala motparter",
+  "H\u00e4lso- och sjukv\u00e5rd": "NIS2 Bilaga I \u2014 V\u00e5rdgivare, laboratorier, l\u00e4kemedel, medicintekniska produkter",
+  "Dricksvatten": "NIS2 Bilaga I \u2014 Leverant\u00f6rer och distribut\u00f6rer av dricksvatten",
+  "Avloppsvatten": "NIS2 Bilaga I \u2014 Avloppsreningsverk och avloppsn\u00e4t",
+  "Digital infrastruktur": "NIS2 Bilaga I \u2014 IXP, DNS, TLD, moln, datacenter, CDN, betrodda tj\u00e4nster",
+  "IKT-tj\u00e4nster": "NIS2 Bilaga I \u2014 Managed services och managed security services (MSP/MSSP)",
+  "Offentlig f\u00f6rvaltning": "NIS2 Bilaga I \u2014 Statliga myndigheter p\u00e5 central niv\u00e5",
+  "Rymden": "NIS2 Bilaga I \u2014 Operat\u00f6rer av markbaserad rymdinfrastruktur",
+  "Post och bud": "NIS2 Bilaga II \u2014 Tillhandah\u00e5llare av posttj\u00e4nster och budtj\u00e4nster",
+  "Avfallshantering": "NIS2 Bilaga II \u2014 Insamling, transport och behandling av avfall",
+  "Kemikalier": "NIS2 Bilaga II \u2014 Tillverkning, produktion och distribution av kemikalier",
+  "Livsmedel": "NIS2 Bilaga II \u2014 Produktion, bearbetning och distribution av livsmedel",
+  "Tillverkning": "NIS2 Bilaga II \u2014 Medicinteknisk, elektronik, fordon, maskiner",
+  "Digitala leverant\u00f6rer": "NIS2 Bilaga II \u2014 Marknadsplatser, s\u00f6kmotorer, sociala plattformar",
+  "Forskning": "NIS2 Bilaga II \u2014 Forskningsorganisationer",
+};
+const sectorTip = s => NIS2_SECTOR[_tr(s,"sector")] || NIS2_SECTOR[s] || "";
+
+const filterDefs = [
+  { key: "activity", field: "activity_type", label: S.filter_labels.activity },
+  { key: "sector",   field: "sector",        label: S.filter_labels.sector },
+  { key: "country",  field: "country",       label: S.filter_labels.country },
+  { key: "region",   field: "region",        label: S.filter_labels.region },
+  { key: "type",     field: "actor_type",    label: S.filter_labels.type },
+  { key: "actor",    field: "threat_actor",  label: S.filter_labels.actor },
+];
+
+function timeFilt(a) {
+  if (!a.published) return false;
+  const _d = parseUTC(a.published); const t = _d ? _d.getTime() : 0, now = Date.now();
+  if (tD > 0 && now - t > tD * 864e5) return false;
+  if (dF && t < dF.getTime()) return false;
+  if (dT) { const e = new Date(dT); e.setDate(e.getDate() + 1); if (t >= e.getTime()) return false }
+  return true;
+}
+
+const regionIncludes = {"Europa": new Set(["Europa", "Norden"])};
+function matchFilter(val, selected) {
+  for (const s of selected) {
+    if (s === val) return true;
+    const inc = regionIncludes[s];
+    if (inc && inc.has(val)) return true;
+  }
+  return false;
+}
+function multiMatch(val, selected) {
+  const parts = val.split(/,\s*/);
+  for (const p of parts) { if (selected.has(p)) return true; }
+  return false;
+}
+function filt() {
+  return A.filter(a => {
+    if (minScore > 0 && (a.severity || a.score || 0) < minScore) return false;
+    if (!timeFilt(a)) return false;
+    for (const [key, vals] of Object.entries(filters)) {
+      const fd = filterDefs.find(f => f.key === key);
+      if (!fd) continue;
+      if (fd.key === "region" ? !matchFilter(a[fd.field], vals) : !multiMatch(a[fd.field], vals)) return false;
+    }
+    return true;
+  });
+}
+
+function scoreClass(s) {
+  if (s >= 8) return "score-high";
+  if (s >= 5) return "score-med";
+  return "score-low";
+}
+
+function scoreTip(a) {
+  const sev = (a.severity||0).toFixed(2);
+  const v = a.verified ? 'ja (+2.0)' : 'nej';
+  const sc = (a.scope||1);
+  const nov = (a.novelty||1);
+  const base = Math.min(10, Math.max(1, (a.severity||0)*0.5 + (a.verified?2:0) + sc*0.4 + nov*0.5));
+  const boost = Math.max(0, a.score - base);
+  let tip = `Score: ${a.score.toFixed(2)}\n\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n`;
+  tip += `Severity: ${sev} (\u00d70.5 = ${((a.severity||0)*0.5).toFixed(2)})\n`;
+  tip += `Verified: ${v}\nScope: ${sc}/5 (\u00d70.4 = ${(sc*0.4).toFixed(2)})\n`;
+  tip += `Novelty: ${nov}/3 (\u00d70.5 = ${(nov*0.5).toFixed(2)})\nBas: ${base.toFixed(2)}`;
+  if (boost > 0.01) tip += `\nProfilboost: +${boost.toFixed(2)}`;
+  return tip;
+}
+
+function renderArticles(visible) {
+  const el = document.getElementById("articles");
+  if (!visible.length) {
+    el.innerHTML = `<div class="empty">${S.empty}</div>`;
+    return;
+  }
+  if (sortMode === "score") visible.sort((a, b) => {
+    const sa = computeThreatLevel(a) * 0.6 + computeRelevance(a) * 0.4;
+    const sb_ = computeThreatLevel(b) * 0.6 + computeRelevance(b) * 0.4;
+    return sb_ - sa || (b.published || "").localeCompare(a.published || "");
+  });
+  else if (sortMode === "source") visible.sort((a, b) => (a.source || "").localeCompare(b.source || "") || b.score - a.score);
+  else visible.sort((a, b) => (b.published || "").localeCompare(a.published || "") || b.score - a.score);
+
+  el.innerHTML = visible.map(a => {
+    // Build metadata as plain text with middot separators
+    let meta = [];
+    if (a.origin) meta.push(esc(_tr(a.origin,"country")) + " \u2192");
+    if (a.country && a.country !== "Globalt") meta.push(esc(_trMulti(a.country,"country")));
+    if (a.region && a.region !== "Globalt") meta.push(esc(_tr(a.region,"region")));
+    if (a.activity_type) meta.push(esc(_tr(a.activity_type,"activity")));
+    if (a.sector) meta.push(`<span data-tip="${esc(sectorTip(a.sector))}">${esc(_tr(a.sector,"sector"))}</span>`);
+    const metaStr = meta.length ? " \u00b7 " + meta.join(" \u00b7 ") : "";
+
+    let detailMeta = "";
+    if (a.threat_actor) {
+      let actorLine = esc(a.threat_actor);
+      if (a.threat_actor_aliases) actorLine += ` <span class="detail-aliases">(${esc(a.threat_actor_aliases)})</span>`;
+      detailMeta += `<span class="detail-key">${S.threat_actor}</span><span class="detail-val">${actorLine}</span>`;
+    }
+    if (a.actor_type) detailMeta += `<span class="detail-key">${S.actor_type}</span><span class="detail-val">${esc(_tr(a.actor_type,"actor_type"))}</span>`;
+    if (a.origin) detailMeta += `<span class="detail-key">${S.origin}</span><span class="detail-val">${esc(_tr(a.origin,"country"))}</span>`;
+    if (a.activity_type) detailMeta += `<span class="detail-key">${S.attack_type}</span><span class="detail-val">${esc(_tr(a.activity_type,"activity"))}</span>`;
+    if (a.country && a.country !== "Globalt") detailMeta += `<span class="detail-key">${S.affected_country}</span><span class="detail-val">${esc(_trMulti(a.country,"country"))}</span>`;
+    if (a.sector) detailMeta += `<span class="detail-key">${S.sector}</span><span class="detail-val" data-tip="${esc(sectorTip(a.sector))}">${esc(_tr(a.sector,"sector"))}</span>`;
+    if (a.impact) detailMeta += `<span class="detail-key">${S.impact}</span><span class="detail-val">${esc(a.impact)}</span>`;
+    if (a.ttps) detailMeta += `<span class="detail-key">${S.ttps}</span><span class="detail-val">${a.ttps.split(/,\s*/).map(t=>`<span class="ttp-code">${esc(t.trim())}</span>`).join(" ")}</span>`;
+    const cves = a.cves ? (function(){ try { return JSON.parse(a.cves) } catch(e) { return [] } })() : [];
+    if (cves.length) detailMeta += `<span class="detail-key">CVEs</span><span class="detail-val">${cves.map(c=>`<a class="cve-link" href="https://nvd.nist.gov/vuln/detail/${esc(c)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${esc(c)}</a>`).join(" ")}</span>`;
+
+    let dateStr = "", timeStr = "";
+    if (a.published) {
+      const d = parseUTC(a.published);
+      if (d) { dateStr = d.toLocaleDateString('sv-SE'); timeStr = d.toLocaleTimeString('sv-SE',{hour:'2-digit',minute:'2-digit'}); }
+      else { dateStr = a.published.slice(0,10); }
+    }
+
+    const vMark = a.verified ? ' \u2713' : '';
+
+    return `<div class="article" data-link="${esc(a.link)}">
+      <div class="article-header">
+        <span class="score ${scoreClass(a.severity||a.score)}" title="${esc(scoreTip(a))}">${(a.severity||a.score).toFixed(1)}${vMark}</span>
+        <span class="article-title">${esc(a.title)}</span>
+      </div>
+      <div class="article-info">
+        ${(a.sources && a.sources.length > 1 ? a.sources.map(s=>esc(s)).join(', ') : esc(a.source))} \u00b7 ${esc(dateStr)} ${esc(timeStr)}${metaStr}
+      </div>
+      ${a.summary ? `<div class="summary">${esc(a.summary)}</div>` : ""}
+      <div class="detail">
+        ${detailMeta ? `<div class="detail-meta">${detailMeta}</div>` : ""}
+        ${a.detail ? `<div class="detail-text">${esc(a.detail)}</div>` : ""}
+        <a class="detail-link" href="${esc(a.link)}" target="_blank" rel="noopener">${S.read_original}</a>
+      </div>
+    </div>`;
+  }).join("");
+}
+
+function buildFilters(visible) {
+  const el = document.getElementById("filter-groups");
+  el.innerHTML = "";
+  const tf = A.filter(timeFilt);
+  filterDefs.forEach(fd => {
+    const pool = tf.filter(a => {
+      for (const [key, vals] of Object.entries(filters)) {
+        if (key === fd.key) continue;
+        const o = filterDefs.find(f => f.key === key);
+        if (o && !multiMatch(a[o.field], vals)) return false;
+      }
+      return true;
+    });
+    const counts = new Map();
+    pool.forEach(a => {
+      const v = a[fd.field];
+      if (!v || (fd.key === "country" || fd.key === "region") && v === "Globalt") return;
+      if (fd.key === "country" && v.includes(",")) {
+        v.split(/,\s*/).forEach(p => { if (p) counts.set(p, (counts.get(p) || 0) + 1); });
+      } else {
+        counts.set(v, (counts.get(v) || 0) + 1);
+      }
+    });
+    if (!counts.size) return;
+    const sorted = [...counts.entries()].sort((a, b) => b[1] - a[1]);
+    const MAX_VIS = 5;
+    const expanded = expandedGroups.has(fd.key);
+    const showAll = expanded || sorted.length <= MAX_VIS + 2;
+    const vis = showAll ? sorted : sorted.filter((e, i) => i < MAX_VIS || filters[fd.key]?.has(e[0]));
+    const row = document.createElement("div");
+    row.className = "filter-group";
+    row.innerHTML = `<span class="filter-label">${fd.label}</span>`;
+    const trCat = {activity:"activity",sector:"sector",country:"country",region:"region",type:"actor_type",actor:null};
+    vis.forEach(([val, cnt]) => {
+      const b = document.createElement("button");
+      const on = filters[fd.key] && filters[fd.key].has(val);
+      b.className = "filter-btn" + (on ? " active" : "");
+      const displayVal = trCat[fd.key] ? _tr(val, trCat[fd.key]) : val;
+      b.innerHTML = esc(displayVal) + `<span class="n">${cnt}</span>`;
+      if (fd.key === "sector" && sectorTip(val)) b.setAttribute("data-tip", sectorTip(val));
+      b.addEventListener("click", e => {
+        e.stopPropagation();
+        if (!filters[fd.key]) filters[fd.key] = new Set();
+        if (filters[fd.key].has(val)) {
+          filters[fd.key].delete(val);
+          if (filters[fd.key].size === 0) delete filters[fd.key];
+        } else {
+          filters[fd.key].add(val);
+        }
+        render();
+      });
+      row.appendChild(b);
+    });
+    const hidden = sorted.length - vis.length;
+    if (hidden > 0) {
+      const mb = document.createElement("button");
+      mb.className = "more-btn";
+      mb.textContent = `+${hidden} ${S.more_suffix}`;
+      mb.addEventListener("click", e => { e.stopPropagation(); expandedGroups.add(fd.key); render(); });
+      row.appendChild(mb);
+    }
+    if (expanded && sorted.length > MAX_VIS + 2) {
+      const cb = document.createElement("button");
+      cb.className = "more-btn";
+      cb.textContent = "\u2212";
+      cb.addEventListener("click", e => { e.stopPropagation(); expandedGroups.delete(fd.key); render(); });
+      row.appendChild(cb);
+    }
+    el.appendChild(row);
+  });
+}
+
+function render() {
+  const v = filt();
+  const nf = Object.keys(filters).length;
+  const tfCount = A.filter(timeFilt).length;
+  document.getElementById("meta").textContent =
+    `${generated} \u2014 ${v.length} ${S.of} ${tfCount} ${S.articles}` +
+    (nf ? ` (${Object.values(filters).reduce((s, v) => s + v.size, 0)} ${S.filter_w})` : "") +
+    ` \u2014 ${A.length} ${S.total}`;
+  document.getElementById("filter-count").textContent =
+    nf ? `${v.length} ${S.of} ${tfCount} ${S.articles}` : "";
+  buildFilters(v);
+  renderArticles(v);
+  renderPresets();
+}
+
+function showToast(msg, type) {
+  const el = document.getElementById("sync-toast");
+  el.textContent = msg;
+  el.className = "sync-toast show" + (type ? " " + type : "");
+  clearTimeout(el._t);
+  el._t = setTimeout(() => { el.className = "sync-toast" }, type === "error" ? 5000 : 4000);
+}
+
+let _syncPoll = null;
+function doSync() {
+  const dot = document.getElementById("sync-dot");
+  if (dot.classList.contains("syncing")) return;
+  dot.classList.add("syncing");
+  showToast(S.syncing);
+  const startCount = A.length;
+  fetch("/api/sync", { method: "POST" }).catch(() => {});
+  let lastPhase = "";
+  _syncPoll = setInterval(() => {
+    fetch("/api/sync/progress").then(r=>r.json()).then(p => {
+      if (p.phase && p.phase !== "idle" && p.message) {
+        if (p.phase !== lastPhase || p.done > 0) {
+          showToast(p.message);
+          lastPhase = p.phase;
+        }
+      }
+      if (p.phase === "saving" || p.phase === "rescoring" || p.phase === "done") {
+        fetch("/api/articles").then(r=>r.json()).then(d => {
+          if (d.articles && d.articles.length !== A.length) {
+            A = d.articles;
+            render();
+          }
+        }).catch(()=>{});
+      }
+      if (p.phase === "done") {
+        clearInterval(_syncPoll); _syncPoll = null;
+        dot.classList.remove("syncing");
+        const newCount = A.length - startCount;
+        if (newCount > 0) {
+          showToast(`${S.sync_done} \u2014 ${newCount} ${S.sync_new}`, "success");
+        } else {
+          showToast(`${S.sync_done} \u2014 ${S.sync_none}`, "success");
+        }
+        fetch("/api/articles").then(r=>r.json()).then(d => {
+          if (d.articles) { A = d.articles; render(); }
+        }).catch(()=>{});
+      }
+    }).catch(()=>{});
+  }, 1500);
+}
+
+document.querySelectorAll(".sb").forEach(b => {
+  b.addEventListener("click", () => {
+    document.querySelectorAll(".sb").forEach(x => x.classList.remove("on"));
+    b.classList.add("on");
+    sortMode = b.dataset.sort;
+    render();
+  });
+});
+
+document.querySelectorAll(".tb:not(.sb)").forEach(b => {
+  if (!b.dataset.d) return;
+  b.addEventListener("click", () => {
+    document.querySelectorAll(".tb[data-d]").forEach(x => x.classList.remove("on"));
+    b.classList.add("on");
+    tD = +b.dataset.d; dF = null; dT = null;
+    document.getElementById("df").value = "";
+    document.getElementById("dt").value = "";
+    render();
+  });
+});
+["df", "dt"].forEach(id => {
+  document.getElementById(id).addEventListener("change", function() {
+    document.querySelectorAll(".tb[data-d]").forEach(x => x.classList.remove("on"));
+    tD = 0;
+    if (id === "df") dF = this.value ? new Date(this.value) : null;
+    else dT = this.value ? new Date(this.value) : null;
+    render();
+  });
+});
+
+const _msEl = document.getElementById("min-score");
+const _msVal = document.getElementById("min-score-val");
+_msEl.value = minScore; _msVal.textContent = minScore || "0";
+_msEl.addEventListener("input", function() {
+  minScore = +this.value;
+  _msVal.textContent = minScore || "0";
+  localStorage.setItem("minScore", minScore);
+  render();
+});
+
+document.getElementById("articles").addEventListener("click", e => {
+  if (e.target.closest("a")) return;
+  const art = e.target.closest(".article");
+  if (!art) return;
+  art.querySelector(".detail").classList.toggle("open");
+});
+
+function getPresets() {
+  try { return JSON.parse(localStorage.getItem("digest-presets") || "[]"); } catch { return []; }
+}
+function savePresets(p) { localStorage.setItem("digest-presets", JSON.stringify(p)); }
+
+function filtersToObj() {
+  const o = {};
+  for (const [k, s] of Object.entries(filters)) o[k] = [...s];
+  return o;
+}
+function objToFilters(o) {
+  for (const k in filters) delete filters[k];
+  for (const [k, arr] of Object.entries(o)) filters[k] = new Set(arr);
+}
+
+function renderPresets() {
+  const el = document.getElementById("presets");
+  const presets = getPresets();
+  const hasActive = Object.keys(filters).length > 0;
+  let html = "";
+  presets.forEach((p, i) => {
+    html += `<button class="preset-btn" data-preset="${i}">${esc(p.name)}<span class="preset-del" data-del="${i}">&times;</span></button>`;
+  });
+  if (hasActive) html += `<button class="preset-save" id="save-preset">${S.save_filter}</button>`;
+  el.innerHTML = html;
+}
+
+document.getElementById("presets").addEventListener("click", e => {
+  const del = e.target.closest("[data-del]");
+  if (del) {
+    e.stopPropagation();
+    const presets = getPresets();
+    presets.splice(+del.dataset.del, 1);
+    savePresets(presets);
+    renderPresets();
+    return;
+  }
+  const btn = e.target.closest("[data-preset]");
+  if (btn) {
+    const presets = getPresets();
+    const p = presets[+btn.dataset.preset];
+    if (p) {
+      objToFilters(p.filters);
+      render();
+    }
+    return;
+  }
+  if (e.target.id === "save-preset") {
+    const name = prompt(S.filter_prompt);
+    if (!name) return;
+    const presets = getPresets();
+    presets.push({ name, filters: filtersToObj() });
+    savePresets(presets);
+    renderPresets();
+  }
+});
+
+
+</script>
+{{ template "i18n" }}
+<script>
+T.page = {
+  title: ["fl\u00f6de","feed"],
+  all: ["allt","all"], h24: ["24h","24h"], d7: ["7d","7d"], d30: ["30d","30d"], d90: ["90d","90d"],
+  sort_label: ["sortera","sort"],
+  sort_date: ["senaste","latest"], sort_score: ["po\u00e4ng","score"], sort_source: ["k\u00e4lla","source"],
+  from: ["fr\u00e5n","from"], to: ["till","to"],
+  empty: ["inga artiklar matchar dina kriterier","no articles match your criteria"],
+  read_original: ["l\u00e4s originalet \u2192","read original \u2192"],
+  sync_btn: ["synka nu","sync now"], syncing: ["synkar feeds\u2026","syncing feeds\u2026"],
+  sync_done: ["klart","done"], sync_new: ["nya artiklar po\u00e4ngsatta","new articles scored"],
+  sync_none: ["inga nya artiklar","no new articles"],
+  sync_err: ["synkfel","sync error"],
+  total: ["totalt","total"], articles: ["artiklar","articles"], of: ["av","of"], filter: ["filter","filter"],
+  threat_actor: ["hotakt\u00f6r","threat actor"], actor_type: ["akt\u00f6rstyp","actor type"],
+  attack_type: ["angreppstyp","attack type"], affected_country: ["drabbat land","affected country"],
+  sector: ["sektor","sector"], impact: ["p\u00e5verkan","impact"], ttps: ["TTPs","TTPs"],
+  save_filter: ["+ spara filter","+ save filter"], filter_name: ["Namn p\u00e5 filtret:","Filter name:"],
+  more_suffix: ["till","more"],
+  filter_labels: {
+    activity: ["aktivitet","activity"], sector: ["sektor","sector"],
+    country: ["land","country"], region: ["region","region"],
+    type: ["akt\u00f6rstyp","actor type"], actor: ["akt\u00f6r","actor"],
+  },
+};
+document.title = LANG === "en" ? "feed" : "fl\u00f6de";
+if (LANG === "en") {
+  const h1 = document.querySelector("h1");
+  if (h1) h1.textContent = "feed";
+  document.querySelectorAll(".tb[data-d]").forEach(b => {
+    if (b.dataset.d === "0") b.textContent = "all";
+  });
+  document.querySelectorAll(".sb").forEach(b => {
+    const m = {date:S.sort_date,score:S.sort_score,source:S.sort_source};
+    if (m[b.dataset.sort]) b.textContent = m[b.dataset.sort];
+  });
+  document.querySelectorAll(".toolbar span[style*='font-weight']").forEach(el => {
+    if (el.textContent.trim().toLowerCase() === "sortera") el.textContent = S.sort_label;
+  });
+}
+render();
+</script>
+{{ template "navjs" }}
+</body>
+</html>

@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>källor</title>
+<style>
+{{ template "basecss" }}
+body { max-width: 800px }
+.header-row {
+  display: flex; align-items: center; gap: 10px; padding: 14px 0 4px;
+}
+.sync-btn {
+  font-family: inherit; font-size: 11px; font-weight: 600;
+  padding: 5px 14px;
+  color: #fff; background: var(--accent);
+  border: none; cursor: pointer; transition: opacity .15s;
+}
+.sync-btn:hover { opacity: .85 }
+.sync-btn.syncing { opacity: .5; pointer-events: none; animation: pulse 1.2s ease-in-out infinite }
+@keyframes pulse { 0%,100%{opacity:.5} 50%{opacity:.3} }
+.sync-progress {
+  margin-top: 8px; margin-bottom: 16px; display: none;
+}
+.sync-progress.active { display: block }
+.sync-progress-bar {
+  height: 4px; background: var(--rule);
+  overflow: hidden; margin-bottom: 6px;
+}
+.sync-progress-fill {
+  height: 100%;
+  background: var(--accent);
+  transition: width .3s ease;
+  width: 0%;
+}
+.sync-progress-fill.indeterminate {
+  width: 30%;
+  animation: indeterminate 1.5s ease-in-out infinite;
+}
+@keyframes indeterminate {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(400%); }
+}
+.sync-progress-text {
+  font-size: 11px; font-weight: 500; color: var(--fg3);
+  display: flex; justify-content: space-between; align-items: center;
+}
+.sync-progress-phase {
+  font-size: 10px; font-weight: 600; color: var(--fg3);
+}
+.sync-toast {
+  position: fixed; top: 10px; left: 50%; transform: translateX(-50%);
+  font-size: 12px; font-weight: 500; padding: 6px 16px;
+  z-index: 100;
+  background: var(--bg2); border: 1px solid var(--rule);
+  color: var(--fg2);
+  opacity: 0; transition: opacity .3s; pointer-events: none;
+}
+.sync-toast.show { opacity: 1 }
+.sync-toast.success { color: var(--ok) }
+.sync-toast.error { color: var(--danger) }
+.meta { font-size: 12px; font-weight: 400; color: var(--fg3); margin-top: 4px; margin-bottom: 24px }
+.section-title {
+  font-size: 12px; font-weight: 600; color: var(--fg3); margin-bottom: 8px;
+}
+.feed-card {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 0; border-bottom: 1px solid var(--rule);
+  transition: background .08s;
+}
+.feed-name { font-size: 13px; font-weight: 600; color: var(--fg); min-width: 120px }
+.feed-url {
+  font-size: 11px; font-weight: 400; color: var(--fg3);
+  flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-family: 'SF Mono',SFMono-Regular,ui-monospace,monospace;
+}
+.feed-status { font-size: 11px; font-weight: 500; white-space: nowrap }
+.feed-status.ok { color: var(--ok) }
+.feed-status.err { color: var(--danger) }
+.feed-status.none { color: var(--fg3) }
+.feed-lastdata { font-size: 10px; color: var(--fg3); white-space: nowrap }
+.feed-card.dead { opacity: .45 }
+.health-dot {
+  display: inline-block; width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+}
+.health-dot.healthy { background: var(--ok) }
+.health-dot.degraded { background: var(--warn) }
+.health-dot.failing { background: var(--danger) }
+.health-dot.dead { background: var(--fg3); opacity: .4 }
+.pending-section { margin-top: 28px }
+.pending-card {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px; margin-bottom: 4px;
+}
+.pending-name { font-size: 13px; font-weight: 600; color: var(--fg); flex: 1 }
+.pending-meta { font-size: 11px; color: var(--fg3) }
+.pending-approve, .pending-dismiss {
+  font-family: inherit; font-size: 11px; font-weight: 600;
+  padding: 4px 12px; border: 1px solid var(--rule); cursor: pointer;
+  transition: all .1s; background: transparent;
+}
+.pending-approve { color: var(--ok) }
+.pending-approve:hover { border-color: var(--ok) }
+.pending-dismiss { color: var(--fg3) }
+.pending-dismiss:hover { color: var(--danger); border-color: var(--danger) }
+.feed-del {
+  all: unset; cursor: pointer; font-size: 14px; color: var(--fg3);
+  width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center;
+  transition: all .1s;
+}
+.feed-del:hover { color: var(--danger) }
+.add-section { margin-top: 28px; position: relative }
+.search-wrap { position: relative; margin-bottom: 12px }
+.search-input {
+  font-family: inherit; font-size: 13px; font-weight: 400;
+  padding: 8px 14px; width: 100%;
+  background: transparent; color: var(--fg);
+  border: 1px solid var(--rule);
+  outline: none; transition: border-color .15s;
+}
+.search-input:focus { border-color: var(--accent) }
+.search-input::placeholder { color: var(--fg3) }
+.autocomplete {
+  position: absolute; top: 100%; left: 0; right: 0;
+  background: var(--bg2); border: 1px solid var(--rule);
+  max-height: 200px; overflow-y: auto;
+  display: none; z-index: 20; margin-top: 4px;
+}
+.autocomplete.open { display: block }
+.ac-item { padding: 8px 14px; cursor: pointer; transition: background .08s }
+.ac-item:hover { background: var(--bg3) }
+.ac-name { font-size: 13px; font-weight: 600; color: var(--fg) }
+.ac-url { font-size: 11px; font-weight: 400; color: var(--fg3) }
+.ac-cat { font-size: 10px; font-weight: 500; color: var(--fg3) }
+.rec-section { margin-top: 28px }
+.rec-panel { padding: 14px 0; margin-bottom: 8px; border-bottom: 1px solid var(--rule) }
+.rec-cat-title {
+  font-size: 12px; font-weight: 700; color: var(--fg2);
+  margin-bottom: 8px;
+}
+.rec-row { display: flex; align-items: center; gap: 10px; padding: 6px 0 }
+.rec-info { flex: 1 }
+.rec-name { font-size: 13px; font-weight: 500; color: var(--fg2) }
+.rec-url { font-size: 11px; font-weight: 400; color: var(--fg3) }
+.rec-add {
+  font-family: inherit; font-size: 11px; font-weight: 600;
+  padding: 4px 12px;
+  color: var(--ok); background: transparent;
+  border: 1px solid var(--rule); cursor: pointer;
+  transition: all .1s;
+}
+.rec-add:hover { border-color: var(--ok) }
+.rec-add.added {
+  color: var(--fg3); background: transparent;
+  pointer-events: none;
+}
+.status {
+  font-size: 12px; font-weight: 400; color: var(--fg3);
+  margin-top: 10px; opacity: 0; transition: opacity .3s;
+}
+.status.show { opacity: 1 }
+@media (max-width: 640px) {
+  .feed-name { min-width: 80px }
+  .feed-card { padding: 8px 10px }
+}
+</style>
+</head>
+<body>
+<div class="sync-toast" id="sync-toast"></div>
+<div class="nav">
+  <a href="/">flöde</a>
+  <a href="/stats">analys</a>
+  <a href="/actor">aktörer</a>
+  <a href="/report">rapport</a>
+  <a href="/brief">brief</a>
+  <span class="cur">källor</span>
+  <a href="/settings">inst.</a>
+  <button class="tdot" onclick="toggleTheme()" title="tema"></button>
+  <button class="lang-dot" onclick="toggleLang()"></button>
+</div>
+<div class="header-row">
+  <h1>källor</h1>
+  <button class="sync-btn" id="sync-btn" onclick="doSync()">synka nu</button>
+</div>
+<div class="sync-progress" id="sync-progress">
+  <div class="sync-progress-bar"><div class="sync-progress-fill" id="sync-fill"></div></div>
+  <div class="sync-progress-text">
+    <span id="sync-msg"></span>
+    <span class="sync-progress-phase" id="sync-phase"></span>
+  </div>
+</div>
+<div class="meta" id="meta"></div>
+
+<div class="section-title">aktiva källor</div>
+<div id="feeds"></div>
+
+<div class="add-section">
+  <div class="section-title">lägg till källa</div>
+  <div class="search-wrap">
+    <input class="search-input" id="search" placeholder="sök källa eller klistra in RSS-URL..." autocomplete="off">
+    <div class="autocomplete" id="autocomplete"></div>
+  </div>
+</div>
+<div class="status" id="status"></div>
+
+<div class="pending-section" id="pending-section" style="display:none">
+  <div class="section-title">föreslagna telegram-kanaler</div>
+  <div id="pending-channels"></div>
+</div>
+
+<div class="rec-section">
+  <div class="section-title">rekommenderade källor</div>
+  <div id="recommendations"></div>
+</div>
+
+<script>
+function toggleTheme() {
+  const r = document.documentElement;
+  const cur = r.getAttribute("data-theme");
+  const next = cur === "light" ? "dark" : cur === "dark" ? "" : "light";
+  if (next) { r.setAttribute("data-theme", next); localStorage.setItem("theme", next); }
+  else { r.removeAttribute("data-theme"); localStorage.removeItem("theme"); }
+}
+const saved = localStorage.getItem("theme");
+if (saved) document.documentElement.setAttribute("data-theme", saved);
+
+let feeds = {{json .Feeds}};
+const syncStatus = {{json .SyncStatus}};
+const feedHealth = {{json .FeedHealth}};
+const pendingChannels = {{json .PendingChannels}};
+const _L=localStorage.getItem("lang")==="en"?"en":"sv";
+const S=_L==="en"?{
+  active_sources:"active sources",last_sync:"last sync",saved:"saved",
+  save_err:"save error",remove:"remove",add_manual:"add manually",added:"added",
+  sync_btn:"sync now",syncing:"syncing...",sync_feeds:"syncing feeds...",
+  sync_done_new:"done",sync_none:"no new articles",sync_err:"sync error",
+  new_label:"new",scored_label:"scored",
+  source_prompt:"Name for this source:",art_suffix:"art",
+  just_now:"just now",min_ago:"min ago",hrs_ago:"hrs ago",day_ago:"d ago",
+}:{
+  active_sources:"aktiva källor",last_sync:"senaste synk",saved:"sparat",
+  save_err:"fel vid sparning",remove:"ta bort",add_manual:"lägg till manuellt",added:"tillagd",
+  sync_btn:"synka nu",syncing:"synkar...",sync_feeds:"synkar feeds...",
+  sync_done_new:"klart",sync_none:"inga nya artiklar",sync_err:"synkfel",
+  new_label:"nya",scored_label:"poängsatta",
+  source_prompt:"Namn för denna källa:",art_suffix:"art",
+  just_now:"just nu",min_ago:"min sedan",hrs_ago:"tim sedan",day_ago:"dag sedan",
+};
+const syncByURL = {};
+const syncByName = {};
+if (syncStatus && syncStatus.feeds) {
+  syncStatus.feeds.forEach(f => { syncByURL[f.url] = f; syncByName[f.name] = f });
+}
+
+const _rc=_L==="en"?{"Nyheter & analys":"News & analysis","Myndigheter & CERT":"Authorities & CERT","Hotunderrättelser & forskning":"Threat intelligence & research","Sårbarheter & exploits":"Vulnerabilities & exploits","Norden & Europa":"Nordics & Europe"}:{};
+const recommended = [
+  { cat: _rc["Nyheter & analys"]||"Nyheter & analys", items: [
+    { name: "BleepingComputer", url: "https://www.bleepingcomputer.com/feed/" },
+    { name: "Krebs on Security", url: "https://krebsonsecurity.com/feed/" },
+    { name: "The Hacker News", url: "https://feeds.feedburner.com/TheHackersNews" },
+    { name: "Dark Reading", url: "https://www.darkreading.com/rss.xml" },
+    { name: "The Record", url: "https://therecord.media/feed" },
+    { name: "Schneier on Security", url: "https://www.schneier.com/feed/atom/" },
+    { name: "Risky Business", url: "https://risky.biz/feeds/risky-business/" },
+    { name: "SecurityWeek", url: "https://www.securityweek.com/feed/" },
+    { name: "Naked Security (Sophos)", url: "https://nakedsecurity.sophos.com/feed/" },
+    { name: "Graham Cluley", url: "https://grahamcluley.com/feed/" },
+    { name: "SC Media", url: "https://www.scmagazine.com/feed" },
+    { name: "CSO Online", url: "https://www.csoonline.com/feed/" },
+    { name: "Infosecurity Magazine", url: "https://www.infosecurity-magazine.com/rss/news/" },
+    { name: "Cyberscoop", url: "https://cyberscoop.com/feed/" },
+  ]},
+  { cat: _rc["Myndigheter & CERT"]||"Myndigheter & CERT", items: [
+    { name: "CISA Alerts", url: "https://www.cisa.gov/cybersecurity-advisories/all.xml" },
+    { name: "CERT-SE", url: "https://www.cert.se/feed.rss" },
+    { name: "NCSC (UK)", url: "https://www.ncsc.gov.uk/api/1/services/v1/report-rss-feed.xml" },
+    { name: "ENISA", url: "https://www.enisa.europa.eu/publications/RSS" },
+    { name: "BSI (DE)", url: "https://www.bsi.bund.de/SiteGlobals/Functions/RSSFeed/RSSNewsfeed/RSSNewsfeed.xml" },
+    { name: "ANSSI (FR)", url: "https://www.cert.ssi.gouv.fr/feed/" },
+    { name: "US-CERT", url: "https://www.us-cert.gov/ncas/alerts.xml" },
+  ]},
+  { cat: _rc["Hotunderrättelser & forskning"]||"Hotunderrättelser & forskning", items: [
+    { name: "Google Project Zero", url: "https://googleprojectzero.blogspot.com/feeds/posts/default" },
+    { name: "Google TAG", url: "https://blog.google/threat-analysis-group/rss/" },
+    { name: "Mandiant", url: "https://www.mandiant.com/resources/blog/rss.xml" },
+    { name: "SentinelOne Labs", url: "https://www.sentinelone.com/labs/feed/" },
+    { name: "Recorded Future", url: "https://www.recordedfuture.com/feed" },
+    { name: "CrowdStrike", url: "https://www.crowdstrike.com/blog/feed/" },
+    { name: "Palo Alto Unit 42", url: "https://unit42.paloaltonetworks.com/feed/" },
+    { name: "Cisco Talos", url: "https://blog.talosintelligence.com/feeds/posts/default" },
+    { name: "ESET Research", url: "https://www.welivesecurity.com/feed/" },
+    { name: "Kaspersky Securelist", url: "https://securelist.com/feed/" },
+    { name: "Trail of Bits", url: "https://blog.trailofbits.com/feed/" },
+    { name: "MalwareTech", url: "https://malwaretech.com/feed" },
+  ]},
+  { cat: _rc["Sårbarheter & exploits"]||"Sårbarheter & exploits", items: [
+    { name: "Packet Storm", url: "https://packetstormsecurity.com/feeds/" },
+    { name: "Exploit-DB", url: "https://www.exploit-db.com/rss.xml" },
+    { name: "NVD (NIST)", url: "https://nvd.nist.gov/feeds/xml/cve/misc/nvd-rss-analyzed.xml" },
+    { name: "VulnDB", url: "https://vuldb.com/?rss.recent" },
+    { name: "Zero Day Initiative", url: "https://www.zerodayinitiative.com/rss/published/" },
+  ]},
+  { cat: _rc["Norden & Europa"]||"Norden & Europa", items: [
+    { name: "CERT-SE", url: "https://www.cert.se/feed.rss" },
+    { name: "MSB Nyheter", url: "https://www.msb.se/sv/aktuellt/rss/" },
+    { name: "NCSC-FI", url: "https://www.kyberturvallisuuskeskus.fi/en/rss/feed/vulnerabilities" },
+    { name: "NCSC-NO", url: "https://nsm.no/rss" },
+    { name: "CERT-DK", url: "https://www.telecom.dk/cert/rss" },
+  ]},
+];
+
+function esc(s) {
+  const d = document.createElement("span");
+  d.textContent = s;
+  return d.innerHTML.replace(/"/g,"&quot;").replace(/'/g,"&#39;");
+}
+function isActive(url) { return feeds.some(f => f.url === url) }
+function showStatus(msg) {
+  const el = document.getElementById("status");
+  el.textContent = msg; el.classList.add("show");
+  setTimeout(() => el.classList.remove("show"), 2500);
+}
+function timeAgo(isoStr) {
+  if (!isoStr) return "";
+  const diff = (Date.now() - new Date(isoStr).getTime()) / 1000;
+  if (diff < 60) return S.just_now;
+  if (diff < 3600) return Math.floor(diff / 60) + " " + S.min_ago;
+  if (diff < 86400) return Math.floor(diff / 3600) + " " + S.hrs_ago;
+  return Math.floor(diff / 86400) + " " + S.day_ago;
+}
+function saveFeeds() {
+  return fetch("/api/feeds", { method: "PUT", headers: {"Content-Type": "application/json"}, body: JSON.stringify(feeds) })
+    .then(r => { if (r.ok) showStatus(S.saved); else showStatus(S.save_err); });
+}
+function addFeed(name, url) {
+  if (isActive(url)) return;
+  feeds.push({ name, url }); renderFeeds(); renderRecommendations(); saveFeeds();
+}
+function removeFeed(idx) {
+  feeds.splice(idx, 1); renderFeeds(); renderRecommendations(); saveFeeds();
+}
+
+function isDead(isoStr) {
+  if (!isoStr) return true;
+  return (Date.now() - new Date(isoStr).getTime()) / 1000 > 30 * 86400;
+}
+function renderFeeds() {
+  const el = document.getElementById("feeds");
+  document.getElementById("meta").textContent = feeds.length + " " + S.active_sources +
+    (syncStatus && syncStatus.last_run ? ` — ${S.last_sync}: ${timeAgo(syncStatus.last_run)}` : "");
+  el.innerHTML = feeds.map((f, i) => {
+    const ss = syncByURL[f.url];
+    let statusHtml = '<span class="feed-status none">—</span>';
+    let dataHtml = '';
+    let dead = false;
+    if (ss) {
+      if (ss.error) {
+        statusHtml = `<span class="feed-status err" title="${esc(ss.error)}">${_L==="en"?"error":"fel"}</span>`;
+      } else if (ss.articles > 0) {
+        statusHtml = `<span class="feed-status ok">${ss.articles} ${S.art_suffix} · ${timeAgo(ss.last_sync)}</span>`;
+      } else if (ss.last_data) {
+        statusHtml = `<span class="feed-status none">0 ${S.art_suffix}</span>`;
+      } else {
+        statusHtml = '<span class="feed-status none">—</span>';
+      }
+      if (ss.last_data) {
+        dataHtml = `<span class="feed-lastdata">${_t(T.page.last_data)}: ${timeAgo(ss.last_data)}</span>`;
+      }
+      dead = isDead(ss.last_data);
+    }
+    const health = feedHealth && feedHealth[f.name] ? feedHealth[f.name] : "";
+    return `<div class="feed-card${dead ? ' dead' : ''}">
+      ${health ? `<span class="health-dot ${health}" title="${health}"></span>` : ""}
+      <span class="feed-name">${esc(f.name)}</span>
+      <span class="feed-url" title="${esc(f.url)}">${esc(f.url)}</span>
+      <span style="display:flex;flex-direction:column;align-items:flex-end;gap:1px">
+        ${statusHtml}
+        ${dataHtml}
+      </span>
+      <button class="feed-del" data-idx="${i}" title="${_L==="en"?"remove":"ta bort"}">&times;</button>
+    </div>`;
+  }).join("");
+  // Append non-feed sources from sync status (Telegram, DDoSia, Cloudflare)
+  const feedURLs = new Set(feeds.map(f => f.url));
+  if (syncStatus && syncStatus.feeds) {
+    const extras = syncStatus.feeds.filter(f => !feedURLs.has(f.url));
+    if (extras.length > 0) {
+      el.innerHTML += extras.map(ss => {
+        let statusHtml = '<span class="feed-status none">—</span>';
+        let dataHtml = '';
+        if (ss.error) {
+          statusHtml = `<span class="feed-status err" title="${esc(ss.error)}">${_L==="en"?"error":"fel"}</span>`;
+        } else if (ss.articles > 0) {
+          statusHtml = `<span class="feed-status ok">${ss.articles} ${S.art_suffix} · ${timeAgo(ss.last_sync)}</span>`;
+        } else if (ss.last_data) {
+          statusHtml = `<span class="feed-status none">0 ${S.art_suffix}</span>`;
+        }
+        if (ss.last_data) dataHtml = `<span class="feed-lastdata">${_t(T.page.last_data)}: ${timeAgo(ss.last_data)}</span>`;
+        const dead = isDead(ss.last_data);
+        const eHealth = feedHealth && feedHealth[ss.name] ? feedHealth[ss.name] : "";
+        return `<div class="feed-card${dead ? ' dead' : ''}">
+          ${eHealth ? `<span class="health-dot ${eHealth}" title="${eHealth}"></span>` : ""}
+          <span class="feed-name">${esc(ss.name)}</span>
+          <span class="feed-url" title="${esc(ss.url)}">${esc(ss.url)}</span>
+          <span style="display:flex;flex-direction:column;align-items:flex-end;gap:1px">
+            ${statusHtml}
+            ${dataHtml}
+          </span>
+        </div>`;
+      }).join("");
+    }
+  }
+}
+
+function renderRecommendations() {
+  const el = document.getElementById("recommendations");
+  el.innerHTML = recommended.map(cat => {
+    const items = cat.items.map(item => {
+      const active = isActive(item.url);
+      return `<div class="rec-row">
+        <div class="rec-info"><div class="rec-name">${esc(item.name)}</div><div class="rec-url">${esc(item.url)}</div></div>
+        <button class="rec-add${active ? " added" : ""}" data-name="${esc(item.name)}" data-url="${esc(item.url)}">${active ? S.added : "+"}</button>
+      </div>`;
+    }).join("");
+    return `<div class="rec-panel"><div class="rec-cat-title">${esc(cat.cat)}</div>${items}</div>`;
+  }).join("");
+}
+
+function showToast(msg, type) {
+  const el = document.getElementById("sync-toast");
+  el.textContent = msg;
+  el.className = "sync-toast show" + (type ? " " + type : "");
+  clearTimeout(el._t);
+  el._t = setTimeout(() => { el.className = "sync-toast" }, type === "error" ? 5000 : 4000);
+}
+
+let syncPollTimer = null;
+function showProgress(phase, msg, done, total) {
+  const wrap = document.getElementById("sync-progress");
+  const fill = document.getElementById("sync-fill");
+  const msgEl = document.getElementById("sync-msg");
+  const phaseEl = document.getElementById("sync-phase");
+  wrap.classList.add("active");
+  msgEl.textContent = msg || "";
+  phaseEl.textContent = phase || "";
+  if (total > 0 && done > 0) {
+    const pct = Math.min(100, Math.round(done / total * 100));
+    fill.classList.remove("indeterminate");
+    fill.style.width = pct + "%";
+  } else {
+    fill.classList.add("indeterminate");
+    fill.style.width = "";
+  }
+}
+function hideProgress() {
+  document.getElementById("sync-progress").classList.remove("active");
+}
+function pollProgress() {
+  fetch("/api/sync/progress").then(r => r.json()).then(p => {
+    if (p.phase && p.phase !== "idle" && p.phase !== "done") {
+      showProgress(p.phase, p.message, p.done, p.total);
+    }
+  }).catch(() => {});
+}
+function doSync() {
+  const btn = document.getElementById("sync-btn");
+  btn.classList.add("syncing"); btn.textContent = S.syncing;
+  showProgress("fetching", S.sync_feeds, 0, 0);
+  syncPollTimer = setInterval(pollProgress, 1500);
+  fetch("/api/sync", { method: "POST" }).then(r => r.json()).then(data => {
+    clearInterval(syncPollTimer);
+    btn.classList.remove("syncing"); btn.textContent = S.sync_btn;
+    showProgress("done", data.new > 0 ? `${S.sync_done_new} — ${data.new} ${S.new_label}, ${data.scored} ${S.scored_label} (${data.duration})` : `${S.sync_done_new} — ${S.sync_none} (${data.duration})`, 1, 1);
+    setTimeout(() => { hideProgress(); location.reload(); }, 3000);
+  }).catch(err => {
+    clearInterval(syncPollTimer);
+    btn.classList.remove("syncing"); btn.textContent = S.sync_btn;
+    showProgress("error", S.sync_err + ": " + err, 0, 0);
+    setTimeout(hideProgress, 5000);
+  });
+}
+
+const allItems = recommended.flatMap(cat => cat.items.map(item => ({ ...item, cat: cat.cat })));
+const searchEl = document.getElementById("search");
+const acEl = document.getElementById("autocomplete");
+searchEl.addEventListener("input", () => {
+  const q = searchEl.value.trim().toLowerCase();
+  if (!q) { acEl.classList.remove("open"); return; }
+  const isUrl = q.startsWith("http") || q.includes("://") || q.includes(".com") || q.includes(".xml") || q.includes("/feed");
+  const matches = allItems.filter(item => item.name.toLowerCase().includes(q) || item.url.toLowerCase().includes(q) || item.cat.toLowerCase().includes(q)).slice(0, 8);
+  let html = matches.map(item => `<div class="ac-item" data-name="${esc(item.name)}" data-url="${esc(item.url)}"><div class="ac-name">${esc(item.name)}</div><div class="ac-url">${esc(item.url)}</div><div class="ac-cat">${esc(item.cat)}</div></div>`).join("");
+  if (isUrl && !matches.some(m => m.url.toLowerCase() === q)) html += `<div class="ac-item" data-name="" data-url="${esc(q)}"><div class="ac-name">${S.add_manual}</div><div class="ac-url">${esc(q)}</div></div>`;
+  acEl.innerHTML = html;
+  acEl.classList.toggle("open", html.length > 0);
+});
+searchEl.addEventListener("keydown", e => {
+  if (e.key === "Enter") { const val = searchEl.value.trim(); if (val.startsWith("http")) { const name = prompt(S.source_prompt); if (name) { addFeed(name, val); searchEl.value = ""; acEl.classList.remove("open"); } } }
+});
+acEl.addEventListener("click", e => {
+  const item = e.target.closest(".ac-item"); if (!item) return;
+  let name = item.dataset.name; const url = item.dataset.url;
+  if (!name) name = prompt(S.source_prompt) || "";
+  if (!name) return; addFeed(name, url); searchEl.value = ""; acEl.classList.remove("open");
+});
+document.addEventListener("click", e => { if (!e.target.closest(".search-wrap")) acEl.classList.remove("open") });
+document.getElementById("feeds").addEventListener("click", e => { const btn = e.target.closest(".feed-del"); if (btn) removeFeed(+btn.dataset.idx) });
+document.getElementById("recommendations").addEventListener("click", e => { const btn = e.target.closest(".rec-add:not(.added)"); if (btn) addFeed(btn.dataset.name, btn.dataset.url) });
+
+function renderPending() {
+  if (!pendingChannels || !pendingChannels.length) { document.getElementById("pending-section").style.display = "none"; return; }
+  document.getElementById("pending-section").style.display = "";
+  const el = document.getElementById("pending-channels");
+  el.innerHTML = pendingChannels.map(ch => `<div class="pending-card">
+    <span class="pending-name">@${esc(ch.username)}</span>
+    <span class="pending-meta">${ch.mention_count} omnämnanden</span>
+    <button class="pending-approve" data-u="${esc(ch.username)}">godkänn</button>
+    <button class="pending-dismiss" data-u="${esc(ch.username)}">avvisa</button>
+  </div>`).join("");
+}
+document.getElementById("pending-channels").addEventListener("click", e => {
+  const approve = e.target.closest(".pending-approve");
+  const dismiss = e.target.closest(".pending-dismiss");
+  const btn = approve || dismiss;
+  if (!btn) return;
+  const username = btn.dataset.u;
+  const action = approve ? "approve" : "dismiss";
+  fetch(`/api/channels/${action}`, { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({username}) })
+    .then(r => { if (r.ok) { const idx = pendingChannels.findIndex(c => c.username === username); if (idx >= 0) pendingChannels.splice(idx, 1); renderPending(); } });
+});
+renderPending();
+</script>
+{{ template "i18n" }}
+<script>
+T.page = {
+  title: ["källor","sources"],
+  active_sources: ["aktiva källor","active sources"],
+  add_source: ["lägg till källa","add source"],
+  search_placeholder: ["sök källa eller klistra in RSS-URL...","search source or paste RSS URL..."],
+  recommended: ["rekommenderade källor","recommended sources"],
+  sync_btn: ["synka nu","sync now"], syncing: ["synkar...","syncing..."],
+  sync_feeds: ["synkar feeds...","syncing feeds..."],
+  sync_done_new: ["klart","done"], sync_none: ["inga nya artiklar","no new articles"],
+  sync_err: ["synkfel","sync error"],
+  saved: ["sparat","saved"], save_err: ["fel vid sparning","save error"],
+  remove: ["ta bort","remove"], add_manual: ["lägg till manuellt","add manually"],
+  added: ["tillagd","added"],
+  active_label: ["aktiva källor","active sources"],
+  last_sync: ["senaste synk","last sync"],
+  source_name_prompt: ["Namn för denna källa:","Name for this source:"],
+  articles_suffix: ["art","art"],
+  last_data: ["senaste data","last data"],
+};
+document.title = _t(T.page.title);
+if (LANG === "en") {
+  const h1 = document.querySelector("h1");
+  if (h1) h1.textContent = _t(T.page.title);
+  const syncBtn = document.getElementById("sync-btn");
+  if (syncBtn) syncBtn.textContent = _t(T.page.sync_btn);
+  const search = document.getElementById("search");
+  if (search) search.placeholder = _t(T.page.search_placeholder);
+  document.querySelectorAll(".section-title").forEach((el, i) => {
+    if (i === 0) el.textContent = _t(T.page.active_sources);
+    else if (i === 1) el.textContent = _t(T.page.add_source);
+    else if (i === 2) el.textContent = _t(T.page.recommended);
+  });
+}
+renderFeeds();
+renderRecommendations();
+</script>
+{{ template "navjs" }}
+</body>
+</html>

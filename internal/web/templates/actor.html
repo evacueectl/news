@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>aktörer</title>
+<style>
+{{ template "basecss" }}
+.sub { margin-bottom: 16px }
+
+.search-wrap { position: relative; margin-bottom: 20px }
+.search {
+  font-family: inherit; width: 100%; font-size: 13px; font-weight: 400;
+  padding: 8px 14px;
+  background: transparent; border: 1px solid var(--rule); color: var(--fg);
+  outline: none; transition: border-color .15s;
+}
+.search:focus { border-color: var(--accent) }
+.search::placeholder { color: var(--fg3) }
+.ac-dropdown {
+  position: absolute; top: 100%; left: 0; right: 0;
+  background: var(--bg2); border: 1px solid var(--rule);
+  max-height: 280px; overflow-y: auto;
+  display: none; z-index: 20; margin-top: 4px;
+}
+.ac-dropdown.open { display: block }
+.ac-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 14px; cursor: pointer; transition: background .08s;
+}
+.ac-item:hover, .ac-item.highlighted { background: var(--bg3) }
+.ac-item-name { font-size: 13px; font-weight: 600; color: var(--fg); flex: 1 }
+.ac-item-badge { font-size: 10px; color: var(--fg3) }
+.ac-item-count { font-size: 11px; color: var(--fg3); min-width: 30px; text-align: right }
+
+.profile { display: none; margin-bottom: 24px }
+.profile.visible { display: block; animation: fadeIn .15s ease-out }
+.profile-header {
+  padding: 16px 0 14px;
+  margin-bottom: 10px; border-bottom: 1px solid var(--rule);
+}
+.ph-name { font-size: 18px; font-weight: 700; color: var(--fg); font-family: Charter, 'Bitstream Charter', Georgia, serif }
+.ph-aliases { font-size: 12px; font-weight: 400; color: var(--fg3); font-style: italic; margin-top: 2px }
+.ph-desc { font-size: 13px; font-weight: 400; color: var(--fg2); margin-top: 6px; line-height: 1.5; min-height: 1.2em }
+.desc-btn {
+  font-family: inherit; font-size: 11px; font-weight: 600;
+  padding: 4px 12px;
+  color: #fff; background: var(--accent);
+  border: none; cursor: pointer; transition: opacity .15s;
+}
+.desc-btn:hover { opacity: .85 }
+.desc-loading { font-size: 12px; font-style: italic; color: var(--fg3) }
+.ph-badge { font-size: 11px; color: var(--fg3); margin-top: 8px; display: block }
+
+.stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; margin-bottom: 10px; border: 1px solid var(--rule) }
+.p-stat-card { padding: 12px 14px; text-align: center }
+.sc-n { font-size: 22px; font-weight: 700; color: var(--fg); line-height: 1; font-variant-numeric: tabular-nums }
+.sc-l { font-size: 10px; font-weight: 600; color: var(--fg3); margin-top: 4px }
+
+.tag-row { font-size: 11px; color: var(--fg2); margin-bottom: 10px; line-height: 1.6 }
+.tag { font-size: 11px; color: var(--fg2) }
+.tag-ttp { font-family: 'SF Mono',ui-monospace,monospace; font-size: 10px; color: var(--fg3) }
+.art-ttps { display: flex; gap: 3px; flex-wrap: wrap; grid-column: 2; margin-top: 3px }
+
+.ttp-section { margin-bottom: 14px }
+.ttp-section .tl-label { margin-bottom: 8px }
+.ttp-grid { display: flex; gap: 6px; flex-wrap: wrap }
+.ttp-card {
+  display: flex; align-items: center; gap: 6px;
+  padding: 6px 10px;
+  border: 1px solid var(--rule);
+  font-size: 11px; transition: border-color .15s;
+}
+.ttp-card:hover { border-color: var(--fg3) }
+.ttp-id {
+  font-family: 'SF Mono',ui-monospace,monospace;
+  font-size: 10px; font-weight: 700; color: var(--fg2);
+}
+.ttp-name { color: var(--fg2); font-weight: 500 }
+.ttp-cnt { font-size: 9px; font-weight: 700; color: var(--fg3) }
+
+.tl-section { margin-bottom: 14px }
+.tl-label { font-size: 11px; font-weight: 600; color: var(--fg3); margin-bottom: 6px }
+.tl-track { position: relative; height: 18px; background: var(--bg3); overflow: hidden }
+.tl-tick { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--rule); opacity: .5 }
+.tl-dot {
+  position: absolute; top: 50%; width: 8px; height: 8px; border-radius: 50%;
+  transform: translate(-50%, -50%); opacity: .85; cursor: pointer;
+}
+.tl-dot:hover { opacity: 1; transform: translate(-50%, -50%) scale(1.5); z-index: 2 }
+.tl-dates { display: flex; justify-content: space-between; font-size: 10px; color: var(--fg3); margin-top: 4px }
+
+.art-section { margin-top: 10px }
+.art-label { font-size: 11px; font-weight: 600; color: var(--fg3); margin-bottom: 6px }
+.art-item {
+  display: grid; grid-template-columns: 32px 1fr; gap: 2px 10px;
+  padding: 8px 0; border-bottom: 1px solid var(--rule);
+}
+.art-item:last-child { border-bottom: none }
+.art-score {
+  font-size: 12px; font-weight: 700; text-align: center; align-self: start;
+  font-variant-numeric: tabular-nums; cursor: help;
+}
+.art-title { font-size: 13px; font-weight: 600; color: var(--fg2) }
+.art-title a { color: inherit; text-decoration: none }
+.art-title a:hover { color: var(--accent) }
+.art-summary { font-size: 12px; font-weight: 400; color: var(--fg3); line-height: 1.5; grid-column: 2 }
+.art-detail { font-size: 12px; font-weight: 400; color: var(--fg2); line-height: 1.5; grid-column: 2; margin-top: 4px }
+.art-meta { font-size: 11px; color: var(--fg3); grid-column: 2; margin-top: 2px }
+.art-impact { font-size: 11px; color: var(--warn); grid-column: 2; margin-top: 3px }
+.cve-section { margin-bottom: 14px }
+.cve-grid { display: flex; gap: 6px; flex-wrap: wrap }
+.cve-card {
+  font-family: 'SF Mono',ui-monospace,monospace;
+  font-size: 11px; font-weight: 600; color: var(--accent);
+  text-decoration: none;
+}
+.cve-card:hover { text-decoration: underline }
+.ioc-section { margin-bottom: 14px }
+.ioc-grid { display: flex; gap: 6px; flex-wrap: wrap }
+.ioc-card {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 8px; border: 1px solid var(--rule);
+  font-family: 'SF Mono',ui-monospace,monospace;
+  font-size: 11px; font-weight: 500; color: var(--fg2);
+  transition: border-color .15s;
+}
+.ioc-card:hover { border-color: var(--fg3) }
+.ioc-type { font-size: 9px; font-weight: 700; color: var(--fg3) }
+.ioc-loading { font-size: 11px; color: var(--fg3) }
+.chain-section { margin-bottom: 14px }
+.chain-steps { position: relative; padding-left: 20px }
+.chain-step {
+  position: relative; padding: 8px 12px; margin-bottom: 8px;
+  border-left: 2px solid var(--rule);
+}
+.chain-step::before {
+  content: ""; position: absolute; left: -6px; top: 12px;
+  width: 10px; height: 10px; border-radius: 50%;
+  border: 2px solid var(--fg3); background: var(--bg);
+}
+.chain-phase {
+  font-size: 10px; font-weight: 600; color: var(--fg3); margin-bottom: 2px;
+}
+.chain-actor { font-size: 12px; font-weight: 600; color: var(--fg2) }
+.chain-ttp {
+  font-size: 10px; font-weight: 600; color: var(--fg3);
+  font-family: 'SF Mono',ui-monospace,monospace; margin-left: 4px;
+}
+.chain-detail { font-size: 11px; color: var(--fg3); margin-top: 2px }
+.none { text-align: center; color: var(--fg3); font-weight: 400; font-size: 14px; padding: 32px 0 }
+@media (max-width: 640px) {
+  .stats-row { flex-direction: column }
+}
+</style>
+</head>
+<body>
+<div class="nav">
+  <a href="/">flöde</a>
+  <a href="/stats">analys</a>
+  <span class="cur">aktörer</span>
+  <a href="/report">rapport</a>
+  <a href="/brief">brief</a>
+  <a href="/feeds">källor</a>
+  <a href="/settings">inst.</a>
+  <button class="tdot" onclick="toggleTheme()" title="tema"></button>
+  <button class="lang-dot" onclick="toggleLang()"></button>
+</div>
+<h1 style="padding:14px 0 0">aktörer</h1>
+<div class="sub" id="sub"></div>
+<div class="search-wrap">
+  <input class="search" id="search" placeholder="sök aktör..." autocomplete="off">
+  <div class="ac-dropdown" id="ac-dropdown"></div>
+</div>
+<div class="profile" id="profile"></div>
+
+<script>
+function toggleTheme(){const r=document.documentElement,c=r.getAttribute("data-theme"),n=c==="light"?"dark":c==="dark"?"":"light";if(n){r.setAttribute("data-theme",n);localStorage.setItem("theme",n)}else{r.removeAttribute("data-theme");localStorage.removeItem("theme")}}
+const sv=localStorage.getItem("theme");if(sv)document.documentElement.setAttribute("data-theme",sv);
+const A={{json .Articles}};
+const esc=s=>{const d=document.createElement("span");d.textContent=s;return d.innerHTML.replace(/"/g,"&quot;").replace(/'/g,"&#39;")};
+const _L=localStorage.getItem("lang")==="en"?"en":"sv";
+const S=_L==="en"?{
+  articles:"articles",avg:"avg",max:"max",period:"period",
+  timeline:"activity timeline",ttps_label:"TECHNIQUES (MITRE ATT&CK)",generate:"generate description",
+  generating:"generating...",gen_fail:"could not generate description",
+  gen_error:"generation error",unknown_type:"unknown type",
+  unique_actors:"unique threat actors",search:"search actor...",
+}:{
+  articles:"artiklar",avg:"snitt",max:"max",period:"period",
+  timeline:"aktivitetstidslinje",ttps_label:"TEKNIKER (MITRE ATT&CK)",generate:"generera beskrivning",
+  generating:"genererar...",gen_fail:"kunde inte generera beskrivning",
+  gen_error:"genereringsfel",unknown_type:"okänd typ",
+  unique_actors:"unika hotaktörer",search:"sök aktör...",
+};
+const NIS2_SECTOR = _L==="en" ? {
+  "Energy": "NIS2 Annex I — Electricity, oil, gas, district heating, hydrogen",
+  "Transport": "NIS2 Annex I — Air, rail, water, road transport",
+  "Banking": "NIS2 Annex I — Credit institutions per CRD",
+  "Financial market infrastructure": "NIS2 Annex I — Trading venues, central counterparties",
+  "Healthcare": "NIS2 Annex I — Healthcare providers, laboratories, pharmaceuticals, medical devices",
+  "Drinking water": "NIS2 Annex I — Drinking water suppliers and distributors",
+  "Wastewater": "NIS2 Annex I — Wastewater treatment plants and networks",
+  "Digital infrastructure": "NIS2 Annex I — IXP, DNS, TLD, cloud, datacenters, CDN, trust services",
+  "ICT services": "NIS2 Annex I — Managed services and managed security services (MSP/MSSP)",
+  "Public administration": "NIS2 Annex I — Central government entities",
+  "Space": "NIS2 Annex I — Operators of ground-based space infrastructure",
+  "Postal services": "NIS2 Annex II — Postal and courier service providers",
+  "Waste management": "NIS2 Annex II — Collection, transport and treatment of waste",
+  "Chemicals": "NIS2 Annex II — Manufacture, production and distribution of chemicals",
+  "Food": "NIS2 Annex II — Production, processing and distribution of food",
+  "Manufacturing": "NIS2 Annex II — Medical devices, electronics, vehicles, machinery",
+  "Digital providers": "NIS2 Annex II — Marketplaces, search engines, social platforms",
+  "Research": "NIS2 Annex II — Research organisations",
+} : {
+  "Energi": "NIS2 Bilaga I — El, olja, gas, fjärrvärme, vätgas",
+  "Transporter": "NIS2 Bilaga I — Luft, järnväg, vatten, vägtransport",
+  "Bankverksamhet": "NIS2 Bilaga I — Kreditinstitut enligt CRD",
+  "Finansmarknadsinfrastruktur": "NIS2 Bilaga I — Handelsplatser, centrala motparter",
+  "Hälso- och sjukvård": "NIS2 Bilaga I — Vårdgivare, laboratorier, läkemedel, medicintekniska produkter",
+  "Dricksvatten": "NIS2 Bilaga I — Leverantörer och distributörer av dricksvatten",
+  "Avloppsvatten": "NIS2 Bilaga I — Avloppsreningsverk och avloppsnät",
+  "Digital infrastruktur": "NIS2 Bilaga I — IXP, DNS, TLD, moln, datacenter, CDN, betrodda tjänster",
+  "IKT-tjänster": "NIS2 Bilaga I — Managed services och managed security services (MSP/MSSP)",
+  "Offentlig förvaltning": "NIS2 Bilaga I — Statliga myndigheter på central nivå",
+  "Rymden": "NIS2 Bilaga I — Operatörer av markbaserad rymdinfrastruktur",
+  "Post och bud": "NIS2 Bilaga II — Tillhandahållare av posttjänster och budtjänster",
+  "Avfallshantering": "NIS2 Bilaga II — Insamling, transport och behandling av avfall",
+  "Kemikalier": "NIS2 Bilaga II — Tillverkning, produktion och distribution av kemikalier",
+  "Livsmedel": "NIS2 Bilaga II — Produktion, bearbetning och distribution av livsmedel",
+  "Tillverkning": "NIS2 Bilaga II — Medicinteknisk, elektronik, fordon, maskiner",
+  "Digitala leverantörer": "NIS2 Bilaga II — Marknadsplatser, sökmotorer, sociala plattformar",
+  "Forskning": "NIS2 Bilaga II — Forskningsorganisationer",
+};
+const sectorTip = s => NIS2_SECTOR[_tr(s,"sector")] || NIS2_SECTOR[s] || "";
+function parseCVEs(s){try{const a=JSON.parse(s||"[]");return Array.isArray(a)?a:[]}catch(e){return[]}}
+function parseChain(s){try{const a=JSON.parse(s||"[]");return Array.isArray(a)?a:[]}catch(e){return[]}}
+const actorMap=new Map();
+A.forEach(a=>{if(!a.threat_actor)return;if(!actorMap.has(a.threat_actor))actorMap.set(a.threat_actor,{name:a.threat_actor,type:a.actor_type||"",aliases:a.threat_actor_aliases||"",articles:[],activities:new Set(),regions:new Set(),countries:new Set(),sectors:new Set(),ttpCounts:new Map(),scores:[],cves:new Set(),chains:[]});const e=actorMap.get(a.threat_actor);e.articles.push(a);e.scores.push(a.score);if(a.activity_type)e.activities.add(a.activity_type);if(a.region&&a.region!=="Globalt")e.regions.add(a.region);if(a.country&&a.country!=="Globalt")e.countries.add(a.country);if(a.sector)e.sectors.add(a.sector);if(a.ttps)a.ttps.split(/,\s*/).forEach(t=>{t=t.trim();if(t)e.ttpCounts.set(t,(e.ttpCounts.get(t)||0)+1)});if(a.threat_actor_aliases&&a.threat_actor_aliases.length>(e.aliases||"").length)e.aliases=a.threat_actor_aliases;parseCVEs(a.cves).forEach(c=>e.cves.add(c));const chain=parseChain(a.attack_chain);if(chain.length>0)e.chains.push({article:a.title,steps:chain})});
+const actors=[...actorMap.values()].map(a=>({...a,count:a.scores.length,avg:Math.round(a.scores.reduce((s,v)=>s+v,0)/a.scores.length*100)/100,maxScore:Math.max(...a.scores),minScore:Math.min(...a.scores)}));
+actors.sort((a,b)=>(b.avg*Math.log2(b.count+1))-(a.avg*Math.log2(a.count+1)));
+document.getElementById("sub").textContent=`${actors.length} ${S.unique_actors} · ${A.length} ${S.articles}`;
+const descCache={};
+const searchEl=document.getElementById("search"),dropEl=document.getElementById("ac-dropdown");
+let hlIdx=-1;
+function renderDropdown(q){const f=q.toLowerCase();const matches=f?actors.filter(a=>a.name.toLowerCase().includes(f)||(a.aliases||"").toLowerCase().includes(f)||a.type.toLowerCase().includes(f)||_tr(a.type,"actor_type").toLowerCase().includes(f)).slice(0,8):[];if(!matches.length){dropEl.classList.remove("open");hlIdx=-1;return}dropEl.innerHTML=matches.map((a,i)=>`<div class="ac-item${i===hlIdx?" highlighted":""}" data-name="${esc(a.name)}"><span class="ac-item-name">${esc(a.name)}</span><span class="ac-item-badge">${esc(a.type?_tr(a.type,"actor_type"):S.unknown_type)}</span><span class="ac-item-count">${a.count}</span></div>`).join("");dropEl.classList.add("open")}
+searchEl.addEventListener("input",()=>{hlIdx=-1;renderDropdown(searchEl.value.trim())});
+searchEl.addEventListener("keydown",e=>{const items=dropEl.querySelectorAll(".ac-item");if(e.key==="ArrowDown"){e.preventDefault();hlIdx=Math.min(hlIdx+1,items.length-1);items.forEach((it,i)=>it.classList.toggle("highlighted",i===hlIdx))}else if(e.key==="ArrowUp"){e.preventDefault();hlIdx=Math.max(hlIdx-1,0);items.forEach((it,i)=>it.classList.toggle("highlighted",i===hlIdx))}else if(e.key==="Enter"){e.preventDefault();const sel=hlIdx>=0&&hlIdx<items.length?items[hlIdx]:items[0];if(sel){showProfile(sel.dataset.name);dropEl.classList.remove("open");searchEl.value=""}}else if(e.key==="Escape")dropEl.classList.remove("open")});
+dropEl.addEventListener("click",e=>{const item=e.target.closest(".ac-item");if(!item)return;showProfile(item.dataset.name);dropEl.classList.remove("open");searchEl.value=""});
+document.addEventListener("click",e=>{if(!e.target.closest(".search-wrap"))dropEl.classList.remove("open")});
+function parseUTC(s){if(!s)return null;const d=new Date(s.endsWith('Z')?s:s+'Z');return isNaN(d)?null:d;}
+function actorColor(type){if(type==="Statlig")return"var(--accent)";if(type==="Kriminell")return"var(--warn)";if(type==="Hacktivist")return"var(--danger)";return"var(--fg3)"}
+function scoreTip(a){const sev=(a.severity||0).toFixed(2),v=a.verified?'ja (+2.0)':'nej',sc=a.scope||1,nov=a.novelty||1,base=Math.min(10,Math.max(1,(a.severity||0)*0.5+(a.verified?2:0)+sc*0.4+nov*0.5)),boost=Math.max(0,a.score-base);let t=`Score: ${a.score.toFixed(2)}\n\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\nSeverity: ${sev} (\u00d70.5 = ${((a.severity||0)*0.5).toFixed(2)})\nVerified: ${v}\nScope: ${sc}/5 (\u00d70.4 = ${(sc*0.4).toFixed(2)})\nNovelty: ${nov}/3 (\u00d70.5 = ${(nov*0.5).toFixed(2)})\nBas: ${base.toFixed(2)}`;if(boost>0.01)t+=`\nProfilboost: +${boost.toFixed(2)}`;return t;}
+function showProfile(name){const a=actors.find(x=>x.name===name);if(!a){document.getElementById("profile").className="profile";return}const el=document.getElementById("profile");el.className="profile visible";history.replaceState(null,"","/actor?q="+encodeURIComponent(name));const times=a.articles.map(x=>x.published?(parseUTC(x.published)||new Date(0)).getTime():0).filter(Boolean);const tMin=Math.min(...times),tMax=Math.max(...times);const tSpan=Math.max(tMax-tMin,864e5);const dayMs=864e5;const firstDay=new Date(tMin);firstDay.setHours(0,0,0,0);const dayTicks=[];for(let d=firstDay.getTime();d<=tMax+dayMs;d+=dayMs)dayTicks.push(d);const color=actorColor(a.type);const ticks=dayTicks.filter(d=>d>=tMin&&d<=tMax).map(d=>{const pct=((d-tMin)/tSpan)*100;return`<div class="tl-tick" style="left:${pct}%"></div>`}).join("");const dots=a.articles.map(art=>{if(!art.published)return"";const _d=parseUTC(art.published);const t=_d?_d.getTime():0;const pct=Math.max(1,Math.min(99,((t-tMin)/tSpan)*100));return`<div class="tl-dot" style="left:${pct}%;background:${color}" title="${art.published.slice(0,10)}: ${esc(art.title)}"></div>`}).join("");const d0=new Date(tMin),d1=new Date(tMax);const fmt=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;const tagParts=[];[...a.activities].forEach(t=>tagParts.push(esc(_tr(t,"activity"))));[...a.sectors].forEach(t=>tagParts.push(`<span data-tip="${esc(sectorTip(t))}">${esc(_tr(t,"sector"))}</span>`));[...a.regions].forEach(t=>tagParts.push(esc(_tr(t,"region"))));[...a.countries].forEach(t=>tagParts.push(esc(_tr(t,"country"))));const tagsStr=tagParts.join(" · ");const ttpSorted=[...a.ttpCounts.entries()].sort((x,y)=>y[1]-x[1]);const ttpSection=ttpSorted.length?`<div class="ttp-section"><div class="tl-label">${S.ttps_label} (${ttpSorted.length})</div><div class="ttp-grid">${ttpSorted.slice(0,15).map(([t,c])=>{const m=t.match(/^(T\d+)\s+(.+)/);return m?`<div class="ttp-card"><span class="ttp-id">${esc(m[1])}</span><span class="ttp-name">${esc(m[2])}</span>${c>1?`<span class="ttp-cnt">${c}</span>`:""}</div>`:`<div class="ttp-card"><span class="ttp-id">${esc(t)}</span>${c>1?`<span class="ttp-cnt">${c}</span>`:""}</div>`}).join("")}</div></div>`:"";
+const cveList=[...a.cves];const cveSection=cveList.length?`<div class="cve-section"><div class="tl-label">CVEs (${cveList.length})</div><div class="cve-grid">${cveList.sort().map(c=>`<a class="cve-card" href="https://nvd.nist.gov/vuln/detail/${esc(c)}" target="_blank" rel="noopener">${esc(c)}</a>`).join("")}</div></div>`:"";
+const chainSection=a.chains.length?`<div class="chain-section"><div class="tl-label">${_L==="en"?"ATTACK CHAINS":"ATTACKKEDJOR"} (${a.chains.length})</div>${a.chains.map(ch=>`<div style="margin-bottom:10px"><div style="font-size:11px;font-weight:600;color:var(--fg2);margin-bottom:4px">${esc(ch.article)}</div><div class="chain-steps">${ch.steps.map(s=>`<div class="chain-step"><div class="chain-phase">${esc(s.phase||"")}</div><div class="chain-actor">${esc(s.actor||"")}${s.ttp?`<span class="chain-ttp">${esc(s.ttp)}</span>`:""}</div>${s.detail?`<div class="chain-detail">${esc(s.detail)}</div>`:""}</div>`).join("")}</div></div>`).join("")}</div>`:"";const sortedArts=[...a.articles].sort((x,y)=>{const tx=x.published?(parseUTC(x.published)||new Date(0)).getTime():0;const ty=y.published?(parseUTC(y.published)||new Date(0)).getTime():0;return ty-tx});const artsHtml=sortedArts.map(art=>{const date=art.published?art.published.slice(0,10):"";return`<div class="art-item"><span class="art-score" title="${esc(scoreTip(art))}">${art.score.toFixed(1)}</span><div class="art-title"><a href="${esc(art.link)}" target="_blank">${esc(art.title)}</a></div>${art.summary?`<div class="art-summary">${esc(art.summary)}</div>`:""}${art.detail?`<div class="art-detail">${esc(art.detail)}</div>`:""}${art.impact?`<span class="art-impact">${esc(art.impact)}</span>`:""}${art.ttps?`<div class="art-ttps">${art.ttps.split(/,\s*/).map(t=>`<span class="tag tag-ttp">${esc(t.trim())}</span>`).join(" ")}</div>`:""}      <div class="art-meta">${esc(art.source)}${date?" · "+date:""}${art.activity_type?" · "+esc(_tr(art.activity_type,"activity")):""}${art.sector?` · <span data-tip="${esc(sectorTip(art.sector))}">${esc(_tr(art.sector,"sector"))}</span>`:""}</div></div>`}).join("");const firstSeen=fmt(d0),lastSeen=fmt(d1);const daySpan=Math.round((tMax-tMin)/dayMs)+1;
+el.innerHTML=`<div class="profile-header"><div class="ph-name">${esc(a.name)}</div>${a.aliases?`<div class="ph-aliases">${esc(a.aliases)}</div>`:""}<div class="ph-desc" id="ph-desc"></div><span class="ph-badge">${esc(a.type?_tr(a.type,"actor_type"):S.unknown_type)}</span><a href="/report?actor=${encodeURIComponent(a.name)}&depth=tactical" class="desc-btn" style="margin-left:8px;text-decoration:none">${_L==="en"?"Generate report":"Generera rapport"}</a></div><div class="stats-row"><div class="p-stat-card"><div class="sc-n">${a.count}</div><div class="sc-l">${S.articles}</div></div><div class="p-stat-card"><div class="sc-n">${a.avg.toFixed(2)}</div><div class="sc-l">${S.avg}</div></div><div class="p-stat-card"><div class="sc-n">${a.maxScore.toFixed(1)}</div><div class="sc-l">${S.max}</div></div><div class="p-stat-card"><div class="sc-n">${daySpan}d</div><div class="sc-l">period</div></div></div><div class="tag-row meta-line">${tagsStr}</div>${ttpSection}${cveSection}<div id="ioc-section"></div>${chainSection}<div class="tl-section"><div class="tl-label">${S.timeline}</div><div class="tl-track">${ticks}${dots}</div><div class="tl-dates"><span>${firstSeen}</span><span>${lastSeen}</span></div></div><div class="art-section"><div class="art-label">${S.articles} (${a.count})</div>${artsHtml}</div>`;
+fetch("/api/iocs?actor="+encodeURIComponent(name)).then(r=>r.json()).then(iocs=>{const sec=document.getElementById("ioc-section");if(!iocs||!iocs.length||iocs.error){sec.innerHTML="";return}const byType={};iocs.forEach(i=>{(byType[i.type]=byType[i.type]||[]).push(i)});const label=_L==="en"?"INDICATORS OF COMPROMISE":"INDIKATORER (IOC)";sec.innerHTML=`<div class="ioc-section"><div class="tl-label">${label} (${iocs.length})</div><div class="ioc-grid">${iocs.slice(0,30).map(i=>`<div class="ioc-card"><span class="ioc-type">${esc(i.type)}</span>${esc(i.value)}</div>`).join("")}</div></div>`}).catch(()=>{});
+const descEl=document.getElementById("ph-desc");if(descCache[name]){descEl.textContent=descCache[name]}else{descEl.innerHTML=`<button class="desc-btn" id="gen-desc">${S.generate}</button>`;document.getElementById("gen-desc").addEventListener("click",()=>{descEl.innerHTML=`<span class="desc-loading">${S.generating}</span>`;fetch("/api/actor-description",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({name})}).then(r=>r.json()).then(data=>{if(data.description){descCache[name]=data.description;descEl.textContent=data.description}else descEl.textContent=S.gen_fail}).catch(()=>{descEl.textContent=S.gen_error})})}}
+
+</script>
+{{ template "i18n" }}
+<script>
+T.page = {
+  title: ["aktörer","actors"],
+  search_placeholder: ["sök aktör...","search actor..."],
+  articles_label: ["artiklar","articles"],
+  avg: ["snitt","avg"], max: ["max","max"], period: ["period","period"],
+  timeline: ["aktivitetstidslinje","activity timeline"],
+  ttps_label: ["TEKNIKER (MITRE ATT&CK)","TECHNIQUES (MITRE ATT&CK)"],
+  generate_desc: ["generera beskrivning","generate description"],
+  generating: ["genererar...","generating..."],
+  gen_fail: ["kunde inte generera beskrivning","could not generate description"],
+  gen_error: ["genereringsfel","generation error"],
+  unknown_type: ["okänd typ","unknown type"],
+  unique_actors: ["unika hotaktörer","unique threat actors"],
+};
+document.title = LANG === "en" ? "actors" : "aktörer";
+if (LANG === "en") {
+  const h1 = document.querySelector("h1");
+  if (h1) h1.textContent = "actors";
+  const search = document.getElementById("search");
+  if (search) search.placeholder = S.search;
+}
+(function(){const q=new URLSearchParams(location.search).get("q");if(q){const match=actors.find(a=>a.name.toLowerCase()===q.toLowerCase());if(match)showProfile(match.name)}})();
+</script>
+{{ template "navjs" }}
+</body>
+</html>
