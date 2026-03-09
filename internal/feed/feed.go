@@ -42,6 +42,7 @@ type Article struct {
 	Content     string // Full article text (from content:encoded, atom content, or fetched)
 	Published   time.Time
 	Source      string
+	ThreatActor string // Pre-set by structured feeds (e.g. DDoSia → NoName057(16))
 }
 
 // RSS 2.0
@@ -585,6 +586,7 @@ func parseDDoSiaTargets(source string, data []byte, published time.Time, link st
 		Description: desc,
 		Published:   published,
 		Source:      source,
+		ThreatActor: "NoName057(16)",
 	}}
 }
 

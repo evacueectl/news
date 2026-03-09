@@ -133,7 +133,10 @@ func applyTriageResult(a *ScoredArticle, r triageResult) {
 // applyEnrichResult applies parsed enrich fields and derives region from country.
 func applyEnrichResult(a *ScoredArticle, r enrichResult) {
 	a.Detail = r.Detail
-	a.ThreatActor = NormalizeThreatActor(r.ThreatActor)
+	if actor := NormalizeThreatActor(r.ThreatActor); actor != "" {
+		a.ThreatActor = actor
+	}
+	// Keep feed-provided ThreatActor if LLM returned empty
 	a.ThreatActorAliases = r.ThreatActorAliases
 	a.ActorType = NormalizeActorType(r.ActorType)
 	a.Origin = NormalizeOrigin(r.Origin)
@@ -303,7 +306,7 @@ func Triage(ctx context.Context, cfg *config.Config, articles []feed.Article, fe
 
 	scored := make([]ScoredArticle, len(articles))
 	for i, a := range articles {
-		scored[i] = ScoredArticle{Article: a}
+		scored[i] = ScoredArticle{Article: a, ThreatActor: NormalizeThreatActor(a.ThreatActor)}
 	}
 
 	const batchSize = 50
